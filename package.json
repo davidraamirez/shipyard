@@ -1,0 +1,26 @@
+{
+  "name": "shipyard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "private": true,
+    "scripts": {
+      "dev:web": "pnpm --filter web dev",
+      "dev:api": "pnpm --filter api start:dev",
+      "dev:worker": "pnpm --filter @shipyard/worker dev",
+      "build": "pnpm -r build",
+      "lint": "pnpm -r lint"
+    },
+    "keywords": [],
+    "author": "David Ramirez Palacios",
+    "license": "ISC",
+    "devEngines": {
+      "packageManager": {
+        "name": "pnpm",
+        "version": "12.10.1",
+        "onFail": "download"
+      }
+    },
+    "packageManager": "pnpm@12.10.1",
+    "type": "module"
+}
