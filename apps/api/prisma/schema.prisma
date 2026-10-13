@@ -19,4 +19,39 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  projects  Project[]
+}
+
+model Project {
+  id            String   @id @default(uuid())
+  name          String
+  repositoryUrl String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  deployments   Deployment[]
+
+}
+
+enum DeploymentStatus {
+  QUEUED
+  BUILDING
+  TESTING
+  DEPLOYING
+  RUNNING
+  FAILED
+}
+
+model Deployment {
+  id        String           @id @default(uuid())
+  status    DeploymentStatus @default(QUEUED)
+  commitSha String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id])
 }
