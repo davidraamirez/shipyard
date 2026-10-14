@@ -8,6 +8,7 @@ import {
   Post,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 
 import { UpdateProjectDto } from './dto/update-project.dto.js';
@@ -15,27 +16,48 @@ import { ProjectsService } from './projects.service.js';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
+import type { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    userId: string;
+    email: string;
+  };
+}
+
 @Controller('projects')
 @UseGuards(JwtAuthGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get()
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(@Req() request: AuthenticatedRequest) {
+    return this.projectsService.findAll(request.user.userId);
   }
 
   @Post()
-  create(@Body() body: CreateProjectDto) {
-    return this.projectsService.create(body);
+  create(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: CreateProjectDto,
+  ) {
+    return this.projectsService.create(
+      request.user.userId,
+      body,
+    );
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const project = await this.projectsService.findOne(id);
+  async findOne(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    const project = await this.projectsService.findOne(
+      id,
+      request.user.userId,
+    );
 
     if (!project) {
-        throw new NotFoundException('Proyecto no encontrado');
+      throw new NotFoundException('Proyecto no encontrado');
     }
 
     return project;
@@ -43,42 +65,41 @@ export class ProjectsController {
 
   @Patch(':id')
   async update(
+    @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateProjectDto,
   ) {
-    try {
-      return await this.projectsService.update(id, body);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === 'PrismaClientKnownRequestError' &&
-        'code' in error &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Proyecto no encontrado');
-      }
+    const project = await this.projectsService.update(
+      id,
+      request.user.userId,
+      body
+    );
 
-      throw error;
+    if (!project) {
+      throw new NotFoundException('Proyecto no encontrado');
     }
+
+    return project;
   }
 
+  
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    try {
-      return await this.projectsService.remove(id);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === 'PrismaClientKnownRequestError' &&
-        'code' in error &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Proyecto no encontrado');
-      }
+  async remove(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    const result = await this.projectsService.remove(
+      id,
+      request.user.userId,
+    );
 
-      throw error;
+    if (!result) {
+      throw new NotFoundException('Proyecto no encontrado');
     }
+
+    return result;
   }
+
 
 
 }

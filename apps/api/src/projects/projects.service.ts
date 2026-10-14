@@ -1,35 +1,42 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CreateProjectDto } from './dto/create-project.dto.js';
+import { UpdateProjectDto } from './dto/update-project.dto.js';
 
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
+  findAll(userId: string) {
     return this.prisma.project.findMany({
+      where: {
+        userId: userId,
+      },
       orderBy: {
         createdAt: 'desc',
       },
     });
   }
 
-  create(data: {
-    name: string;
-    repositoryUrl: string;
-    userId: string;
-  }) {
+  create(
+    userId: string, 
+    data: CreateProjectDto
+  ) {
     return this.prisma.project.create({
       data: {
         name: data.name,
         repositoryUrl: data.repositoryUrl,
-        userId: data.userId,
+        userId,
       },
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.project.findUnique({
-      where: { id },
+  findOne(id: string, userId: string) {
+    return this.prisma.project.findFirst({
+      where: {
+        id,
+        userId,
+      },
       include: {
         deployments: {
           orderBy: {
@@ -40,23 +47,46 @@ export class ProjectsService {
     });
   }
 
-  update(
+  
+  async update(
     id: string,
-    data: {
-      name?: string;
-      repositoryUrl?: string;
-    },
+    userId: string,
+    data: UpdateProjectDto,
   ) {
-    return this.prisma.project.update({
-      where: { id },
+    const result = await this.prisma.project.updateMany({
+      where: {
+        id,
+        userId,
+      },
       data,
+    });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return this.prisma.project.findFirst({
+      where: {
+        id,
+        userId,
+      },
     });
   }
 
-  remove(id: string) {
-    return this.prisma.project.delete({
-      where: { id },
+
+  async remove(id: string, userId: string) {
+    const result = await this.prisma.project.deleteMany({
+      where: {
+        id,
+        userId,
+      },
     });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return { deleted: true };
   }
 
 }
