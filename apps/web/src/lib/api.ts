@@ -26,6 +26,14 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Tu sesión ha caducado. Inicia sesión de nuevo.");
+    }
+
+    if (response.status === 404) {
+      throw new Error("No se encontró el recurso solicitado.");
+    }
+
     throw new Error(`Error de API: ${response.status}`);
   }
 

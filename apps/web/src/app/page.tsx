@@ -139,10 +139,14 @@ export default function Home() {
 
               {!loading && !error && projects.length > 0 && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {projects.map((project) => (
-                    <article
-                      key={project.id}
-                      className="rounded-xl border border-slate-800 bg-slate-900 p-5"
+                  {projects.map((project) => ( 
+                  <article
+                    key={project.id}
+                    className="rounded-xl border border-slate-800 bg-slate-900 p-5 transition hover:border-cyan-400/60"
+                  >
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="block"
                     >
                       <h3 className="font-semibold">{project.name}</h3>
                       <p className="mt-2 break-all text-sm text-slate-400">
@@ -152,7 +156,11 @@ export default function Home() {
                         Created{" "}
                         {new Date(project.createdAt).toLocaleDateString()}
                       </p>
-                    </article>
+                      <p className="mt-4 text-sm font-medium text-cyan-300">
+                        View project →
+                      </p>
+                    </Link>
+                  </article>
                   ))}
                 </div>
               )}
