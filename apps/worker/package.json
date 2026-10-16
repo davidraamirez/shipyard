@@ -2,10 +2,14 @@
   "name": "@shipyard/worker",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
+  
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -19,6 +23,7 @@
     "@types/node": "^22.0.0",
     "@types/pg": "^8.23.1",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^5.0.5"
   }
 }

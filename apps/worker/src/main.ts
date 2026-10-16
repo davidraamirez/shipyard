@@ -1,63 +1,13 @@
-import { Worker, type Job } from 'bullmq';
+import { Worker } from 'bullmq';
 import { prisma } from './prisma.js';
-
-type DeploymentJob = {
-  deploymentId: string;
-  projectId: string;
-  repositoryUrl: string;
-  requestedAt: string;
-};
+import {
+  processDeployment,
+  type DeploymentJob,
+} from './deployment.processor.js';
 
 const worker = new Worker<DeploymentJob>(
   'deployments',
-  async (job: Job<DeploymentJob>) => {
-    const { deploymentId, projectId, repositoryUrl } = job.data;
-
-    console.log(`Procesando deployment: ${deploymentId}`);
-    console.log(`Proyecto: ${projectId}`);
-    console.log(`Repositorio: ${repositoryUrl}`);
-
-    try {
-      // 1. Marcar el deployment como BUILDING.
-      await prisma.deployment.update({
-        where: { id: deploymentId },
-        data: { status: 'BUILDING' },
-      });
-
-      console.log(`Deployment ${deploymentId}: BUILDING`);
-
-      // Más adelante clonaremos el repositorio y construiremos la aplicación.
-
-      // 2. Por ahora, simulamos que el despliegue termina correctamente.
-      await prisma.deployment.update({
-        where: { id: deploymentId },
-        data: { status: 'RUNNING' },
-      });
-
-      console.log(`Deployment ${deploymentId}: RUNNING`);
-
-      return {
-        success: true,
-        deploymentId,
-        status: 'RUNNING',
-      };
-    } catch (error) {
-      // Si falla el procesamiento, registrar el estado FAILED.
-      try {
-        await prisma.deployment.update({
-          where: { id: deploymentId },
-          data: { status: 'FAILED' },
-        });
-      } catch (databaseError) {
-        console.error(
-          'No se pudo actualizar el estado en PostgreSQL:',
-          databaseError,
-        );
-      }
-
-      throw error;
-    }
-  },
+  async (job) => processDeployment(job.data),
   {
     connection: {
       host: '127.0.0.1',
