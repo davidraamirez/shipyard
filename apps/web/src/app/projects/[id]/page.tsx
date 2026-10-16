@@ -63,26 +63,58 @@ function ProjectDetailContent() {
   const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
+    let active = true;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     async function loadProject() {
       try {
         const result = await apiRequest<Project>(
           `/projects/${projectId}`,
         );
+
+        if (!active) return;
+
         setProject(result);
         setName(result.name);
         setRepositoryUrl(result.repositoryUrl);
+        setError("");
+
+        const hasActiveDeployments = result.deployments.some(
+          (deployment) =>
+            ["QUEUED", "BUILDING", "TESTING", "DEPLOYING"].includes(
+              deployment.status,
+            ),
+        );
+
+        if (hasActiveDeployments) {
+          timeoutId = setTimeout(() => {
+            void loadProject();
+          }, 3000);
+        }
       } catch (err) {
+        if (!active) return;
+
         setError(
           err instanceof Error
             ? err.message
             : "No se pudo cargar el proyecto",
         );
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
     void loadProject();
+
+    return () => {
+      active = false;
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [projectId]);
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
@@ -261,8 +293,7 @@ function ProjectDetailContent() {
                 <div className="mt-5 rounded-xl border border-dashed border-slate-700 p-8 text-center">
                   <h3 className="font-medium">No deployments yet</h3>
                   <p className="mt-2 text-sm text-slate-400">
-                    Deployments will appear here when the deployment
-                    workflow is implemented.
+                    Your deployments will appear here when you deploy this project.
                   </p>
                 </div>
               ) : (
