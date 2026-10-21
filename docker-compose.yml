@@ -21,6 +21,24 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+  
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: shipyard-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://shipyard:shipyard@postgres:5432/shipyard
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - redis
 
 volumes:
   postgres_data:
