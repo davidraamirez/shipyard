@@ -10,8 +10,9 @@ const worker = new Worker<DeploymentJob>(
   async (job) => processDeployment(job.data),
   {
     connection: {
-      host: '127.0.0.1',
-      port: 6379,
+      host: process.env.REDIS_HOST ?? '127.0.0.1',
+      port: Number(process.env.REDIS_PORT ?? 6379),
+      password: process.env.REDIS_PASSWORD,
     },
   },
 );

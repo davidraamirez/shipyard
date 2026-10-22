@@ -2,10 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
-  '@prisma/engines': false
+  '@prisma/engines': true
   bcrypt: false
   esbuild: false
   msgpackr-extract: false
-  prisma: false
+  prisma: true
   unrs-resolver: false
   workerd: false
