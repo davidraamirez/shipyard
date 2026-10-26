@@ -52,7 +52,6 @@ describe('DeploymentsService', () => {
       const result = await service.enqueue(
         'user-1',
         'project-1',
-        'https://github.com/otro/repositorio',
       );
 
       expect(result).toEqual({
@@ -80,6 +79,13 @@ describe('DeploymentsService', () => {
           projectId: 'project-1',
           repositoryUrl: 'https://github.com/example/shipyard',
         }),
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
       );
     });
 
@@ -87,12 +93,80 @@ describe('DeploymentsService', () => {
       mocks.project.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.enqueue('user-1', 'project-1', 'https://example.com/repo'),
+        service.enqueue('user-1', 'project-1'),
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(mocks.deployment.create).not.toHaveBeenCalled();
       expect(mocks.queueAdd).not.toHaveBeenCalled();
     });
+
+    
+    it('debe marcar como FAILED el deployment si Redis falla', async () => {
+      const redisError = new Error('Redis no disponible');
+
+      mocks.project.findFirst.mockResolvedValue({
+        id: 'project-1',
+        repositoryUrl: 'https://github.com/example/shipyard',
+      });
+
+      mocks.deployment.create.mockResolvedValue({
+        id: 'deployment-1',
+        status: 'QUEUED',
+      });
+
+      mocks.queueAdd.mockRejectedValue(redisError);
+      mocks.deployment.update.mockResolvedValue({});
+
+      await expect(
+        service.enqueue('user-1', 'project-1'),
+      ).rejects.toBe(redisError);
+
+      expect(mocks.deployment.update).toHaveBeenCalledWith({
+        where: { id: 'deployment-1' },
+        data: { status: 'FAILED' },
+      });
+    });
+
+    it('debe propagar el error de Redis aunque también falle la actualización a FAILED', async () => {
+      const redisError = new Error('Redis no disponible');
+      const databaseError = new Error('PostgreSQL no disponible');
+
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      try {
+        mocks.project.findFirst.mockResolvedValue({
+          id: 'project-1',
+          repositoryUrl: 'https://github.com/example/shipyard',
+        });
+
+        mocks.deployment.create.mockResolvedValue({
+          id: 'deployment-1',
+          status: 'QUEUED',
+        });
+
+        mocks.queueAdd.mockRejectedValue(redisError);
+        mocks.deployment.update.mockRejectedValue(databaseError);
+
+        await expect(
+          service.enqueue('user-1', 'project-1'),
+        ).rejects.toBe(redisError);
+
+        expect(mocks.deployment.update).toHaveBeenCalledWith({
+          where: { id: 'deployment-1' },
+          data: { status: 'FAILED' },
+        });
+
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.stringContaining('No se pudo actualizar el deployment'),
+          databaseError,
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
+    });
+
   });
 
   describe('retry', () => {
@@ -129,6 +203,13 @@ describe('DeploymentsService', () => {
           projectId: 'project-1',
           repositoryUrl: 'https://github.com/example/shipyard',
         }),
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
       );
     });
 
@@ -159,6 +240,83 @@ describe('DeploymentsService', () => {
 
       expect(mocks.deployment.update).not.toHaveBeenCalled();
       expect(mocks.queueAdd).not.toHaveBeenCalled();
+    });
+    
+    it('debe marcar como FAILED el deployment si Redis falla al reintentar', async () => {
+      const redisError = new Error('Redis no disponible');
+
+      mocks.deployment.findFirst.mockResolvedValue({
+        id: 'deployment-1',
+        projectId: 'project-1',
+        status: 'FAILED',
+        project: {
+          repositoryUrl: 'https://github.com/example/shipyard',
+        },
+      });
+
+      mocks.deployment.update.mockResolvedValue({});
+      mocks.queueAdd.mockRejectedValue(redisError);
+
+      await expect(
+        service.retry('deployment-1', 'user-1'),
+      ).rejects.toBe(redisError);
+
+      expect(mocks.deployment.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 'deployment-1' },
+        data: { status: 'QUEUED' },
+      });
+
+      expect(mocks.deployment.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 'deployment-1' },
+        data: { status: 'FAILED' },
+      });
+    });
+
+    it('debe propagar el error de Redis aunque falle la actualización a FAILED durante el reintento', async () => {
+      const redisError = new Error('Redis no disponible');
+      const databaseError = new Error('PostgreSQL no disponible');
+
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      try {
+        mocks.deployment.findFirst.mockResolvedValue({
+          id: 'deployment-1',
+          projectId: 'project-1',
+          status: 'FAILED',
+          project: {
+            repositoryUrl: 'https://github.com/example/shipyard',
+          },
+        });
+
+        mocks.deployment.update
+          .mockResolvedValueOnce({})
+          .mockRejectedValueOnce(databaseError);
+
+        mocks.queueAdd.mockRejectedValue(redisError);
+
+        await expect(
+          service.retry('deployment-1', 'user-1'),
+        ).rejects.toBe(redisError);
+
+        expect(mocks.deployment.update).toHaveBeenNthCalledWith(1, {
+          where: { id: 'deployment-1' },
+          data: { status: 'QUEUED' },
+        });
+
+        expect(mocks.deployment.update).toHaveBeenNthCalledWith(2, {
+          where: { id: 'deployment-1' },
+          data: { status: 'FAILED' },
+        });
+
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.stringContaining('No se pudo restaurar el estado'),
+          databaseError,
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
     });
   });
 

@@ -60,7 +60,6 @@ describe('DeploymentsController', () => {
     expect(mocks.enqueue).toHaveBeenCalledWith(
       'user-1',
       'project-1',
-      'https://github.com/example/shipyard',
     );
   });
 

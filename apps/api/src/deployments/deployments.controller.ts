@@ -38,7 +38,6 @@ export class DeploymentsController {
     return this.deploymentsService.enqueue(
       request.user.userId,
       body.projectId,
-      body.repositoryUrl,
     );
   }
 
@@ -80,4 +79,17 @@ export class DeploymentsController {
       request.user.userId,
     );
   }
+
+  
+  @Get(':id/logs')
+  findLogs(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.deploymentsService.findLogs(
+      id,
+      request.user.userId,
+    );
+  }
+
 }

@@ -7,7 +7,10 @@ import {
 
 const worker = new Worker<DeploymentJob>(
   'deployments',
-  async (job) => processDeployment(job.data),
+  async (job) => processDeployment(job.data, {
+    attemptsMade: job.attemptsMade,
+    maxAttempts: job.opts.attempts ?? 1,
+  }),
   {
     connection: {
       host: process.env.REDIS_HOST ?? '127.0.0.1',

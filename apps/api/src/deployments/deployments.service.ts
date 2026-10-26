@@ -14,7 +14,6 @@ export class DeploymentsService {
   async enqueue(
     userId: string,
     projectId: string,
-    repositoryUrl: string,
  ) {
     const project = await this.prisma.project.findFirst({
       where: {
@@ -34,13 +33,37 @@ export class DeploymentsService {
         },
     });
 
-    const job = await this.deploymentsQueue.add('deploy-project', {
-        deploymentId: deployment.id,
-        projectId: project.id,
-        repositoryUrl: project.repositoryUrl,
-        requestedAt: new Date().toISOString(),
-    });
+    let job 
+    try {
+      job = await this.deploymentsQueue.add('deploy-project', {
+          deploymentId: deployment.id,
+          projectId: project.id,
+          repositoryUrl: project.repositoryUrl,
+          requestedAt: new Date().toISOString(),
+        }, 
+        {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
+    } catch (error) {  
+      try {
+        await this.prisma.deployment.update({
+          where: { id: deployment.id },
+          data: { status: 'FAILED' },
+        });
+      } catch (databaseError) {
+        console.error(
+          `No se pudo actualizar el deployment ${deployment.id}:`,
+          databaseError,
+        );
+      }
 
+      throw error;
+    }
     return {
         message: 'Deployment añadido a la cola',
         deploymentId: deployment.id,
@@ -81,12 +104,37 @@ export class DeploymentsService {
       },
     });
 
-    const job = await this.deploymentsQueue.add('deploy-project', {
-      deploymentId: deployment.id,
-      projectId: deployment.projectId,
-      repositoryUrl: deployment.project.repositoryUrl,
-      requestedAt: new Date().toISOString(),
-    });
+    let job;
+
+    try {
+      job = await this.deploymentsQueue.add('deploy-project', {
+          deploymentId: deployment.id,
+          projectId: deployment.projectId,
+          repositoryUrl: deployment.project.repositoryUrl,
+          requestedAt: new Date().toISOString(),
+        }, {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        },
+      );
+    } catch (error) {
+      try {
+        await this.prisma.deployment.update({
+          where: { id: deployment.id },
+          data: { status: 'FAILED' },
+        });
+      } catch (databaseError) {
+        console.error(
+          `No se pudo restaurar el estado del deployment ${deployment.id}:`,
+          databaseError,
+        );
+      }
+
+      throw error;
+    }
 
     return {
       message: 'Deployment añadido de nuevo a la cola',
@@ -138,6 +186,34 @@ export class DeploymentsService {
       orderBy: {
         createdAt: 'desc',
      },
+    });
+  }
+
+  
+  async findLogs(id: string, userId: string) {
+    const deployment = await this.prisma.deployment.findFirst({
+      where: {
+        id,
+        project: {
+          userId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!deployment) {
+      throw new NotFoundException('Deployment no encontrado');
+    }
+
+    return this.prisma.deploymentLog.findMany({
+      where: {
+        deploymentId: deployment.id,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
   }
 
