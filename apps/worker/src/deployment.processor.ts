@@ -1,5 +1,7 @@
-
 import { prisma } from './prisma.js';
+import { cloneRepository } from './git.js';
+import { detectProject } from './project-detector.js';
+import { buildProject } from './build.js';
 
 export type DeploymentJob = {
   deploymentId: string;
@@ -71,7 +73,59 @@ export async function processDeployment(
       'Estado actualizado a BUILDING',
     );
 
-    // Más adelante añadiremos aquí el clonado y la compilación.
+    const workspace = await cloneRepository(repositoryUrl, deploymentId);
+
+    const projectInfo = await detectProject(workspace);
+
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      `Tipo de proyecto detectado: ${projectInfo.type}`,
+    );
+
+    if (projectInfo.type === 'NODE') {
+      await writeDeploymentLog(
+        deploymentId,
+        'INFO',
+        `Gestor de paquetes: ${projectInfo.packageManager ?? 'no detectado'}`,
+      );
+
+      await writeDeploymentLog(
+        deploymentId,
+        'INFO',
+        `Script build: ${projectInfo.buildScript ?? 'no definido'}`,
+      );
+    }
+
+    if (projectInfo.type === 'NODE') {
+      await writeDeploymentLog(
+        deploymentId,
+        'INFO',
+        'Iniciando build del proyecto',
+      );
+
+      const buildResult = await buildProject(
+        deploymentId,
+        workspace,
+        projectInfo,
+      );
+      
+      await writeDeploymentLog(
+        deploymentId,
+        'INFO',
+        `Build completado correctamente. ${buildResult.output}`,
+      );
+    } else {
+      throw new Error(
+        `Tipo de proyecto no compatible para build: ${projectInfo.type}`,
+      );
+    }
+    
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      `Repositorio clonado correctamente en ${workspace}`,
+    );
 
     await prisma.deployment.update({
       where: { id: deploymentId },
@@ -83,13 +137,14 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Deployment completado correctamente. Estado: RUNNING',
+      'Clonado completado. Estado actualizado a RUNNING',
     );
 
     return {
       success: true,
       deploymentId,
       status: 'RUNNING' as const,
+      workspace,
     };
   } catch (error) {
     const isLastAttempt = attemptNumber >= maxAttempts;

@@ -1,9 +1,9 @@
 import {
   IsNotEmpty,
   IsString,
-  IsUrl,
   MaxLength,
 } from 'class-validator';
+import { IsGitRepositoryUrl } from '../validators/is-git-repository-url.validator.js';
 
 export class CreateProjectDto {
   @IsString()
@@ -11,6 +11,6 @@ export class CreateProjectDto {
   @MaxLength(100)
   name!: string;
 
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsGitRepositoryUrl()
   repositoryUrl!: string;
 }

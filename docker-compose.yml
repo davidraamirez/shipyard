@@ -79,6 +79,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      BUILD_RUNNER_URL: http://build-runner:8080
+      BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?Falta BUILD_RUNNER_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,6 +88,32 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    volumes:
+      - shipyard_workspaces:/app/workspaces
 
+
+  build-runner:
+    build:
+      context: .
+      dockerfile: apps/build-runner/Dockerfile
+    container_name: shipyard-build-runner
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?Falta BUILD_RUNNER_TOKEN}
+    volumes:
+      - shipyard_workspaces:/app/workspaces:ro
+      
 volumes:
   postgres_data:
+  shipyard_workspaces:

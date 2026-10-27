@@ -19,8 +19,13 @@ RUN pnpm --filter @shipyard/worker deploy --prod --legacy /prod/worker
 
 # Imagen final
 FROM node:22-alpine AS runner
+RUN apk add --no-cache git
 ENV NODE_ENV=production
 WORKDIR /app
+
+RUN mkdir -p /app/workspaces \
+    && chown -R node:node /app/workspaces
 COPY --from=build --chown=node:node /prod/worker ./
+COPY --from=build --chown=node:node /app/apps/worker/package.json ./package.json
 USER node
 CMD ["node", "dist/main.js"]

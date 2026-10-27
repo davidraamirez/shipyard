@@ -1,7 +1,6 @@
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { prismaMock } = vi.hoisted(() => ({
+const { prismaMock, gitMock, detectorMock, buildMock } = vi.hoisted(() => ({
   prismaMock: {
     deployment: {
       update: vi.fn(),
@@ -10,10 +9,32 @@ const { prismaMock } = vi.hoisted(() => ({
       create: vi.fn(),
     },
   },
+  gitMock: {
+    cloneRepository: vi.fn(),
+  },
+  detectorMock: {
+    detectProject: vi.fn(),
+  },
+  buildMock: {
+    buildProject: vi.fn(),
+  },
 }));
+
 
 vi.mock('./prisma.js', () => ({
   prisma: prismaMock,
+}));
+
+vi.mock('./git.js', () => ({
+  cloneRepository: gitMock.cloneRepository,
+}));
+
+vi.mock('./project-detector.js', () => ({
+  detectProject: detectorMock.detectProject,
+}));
+
+vi.mock('./build.js', () => ({
+  buildProject: buildMock.buildProject,
 }));
 
 import { processDeployment } from './deployment.processor.js';
@@ -23,6 +44,19 @@ describe('processDeployment', () => {
     vi.clearAllMocks();
     prismaMock.deploymentLog.create.mockResolvedValue({
       id: 'log-1',
+    });
+    gitMock.cloneRepository.mockResolvedValue(
+      '/app/workspaces/deployment-1',
+    );  
+    detectorMock.detectProject.mockResolvedValue({
+      type: 'NODE',
+      packageManager: 'pnpm',
+      buildScript: 'build',
+    });
+
+    buildMock.buildProject.mockResolvedValue({
+      success: true,
+      output: 'Build completado',
     });
   });
 
@@ -54,6 +88,7 @@ describe('processDeployment', () => {
       success: true,
       deploymentId: 'deployment-1',
       status: 'RUNNING',
+      workspace: '/app/workspaces/deployment-1',
     });
   });
 
@@ -214,9 +249,14 @@ describe('processDeployment', () => {
       data: {
         deploymentId: 'deployment-1',
         level: 'INFO',
-        message: 'Deployment completado correctamente. Estado: RUNNING',
+        message: 'Clonado completado. Estado actualizado a RUNNING',
       },
     });
+
+    expect(gitMock.cloneRepository).toHaveBeenCalledWith(
+      'https://github.com/example/app',
+      'deployment-1',
+    );
   });
 
   it('registra un WARN cuando un intento falla y quedan reintentos', async () => {
@@ -253,6 +293,50 @@ describe('processDeployment', () => {
     const result = await processDeployment(deploymentJob);
 
     expect(result.status).toBe('RUNNING');
+  });
+
+  it('no marca como RUNNING si falla el build', async () => {
+    const buildError = new Error('Falló la compilación');
+
+    prismaMock.deployment.update.mockResolvedValueOnce({
+      id: 'deployment-1',
+      status: 'BUILDING',
+    });
+
+    buildMock.buildProject.mockRejectedValueOnce(buildError);
+
+    await expect(
+      processDeployment(deploymentJob, {
+        attemptsMade: 0,
+        maxAttempts: 3,
+      }),
+    ).rejects.toThrow('Falló la compilación');
+
+    expect(buildMock.buildProject).toHaveBeenCalledWith(
+      'deployment-1',
+      '/app/workspaces/deployment-1',    
+      {
+        type: 'NODE',
+        packageManager: 'pnpm',
+        buildScript: 'build',
+      },
+    );
+
+    expect(prismaMock.deployment.update).toHaveBeenCalledTimes(1);
+
+    expect(prismaMock.deployment.update).toHaveBeenCalledWith({
+      where: { id: 'deployment-1' },
+      data: { status: 'BUILDING' },
+    });
+
+    expect(prismaMock.deploymentLog.create).toHaveBeenCalledWith({
+      data: {
+        deploymentId: 'deployment-1',
+        level: 'WARN',
+        message:
+          'Falló el intento 1/3: Falló la compilación. BullMQ podrá reintentarlo.',
+      },
+    });
   });
 
 });
