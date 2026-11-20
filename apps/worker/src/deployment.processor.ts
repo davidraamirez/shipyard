@@ -1,9 +1,10 @@
+import { UnrecoverableError } from 'bullmq';
+import type { DeploymentJob } from '@shipyard/shared';
 import { prisma } from './prisma.js';
-import { cloneRepository } from './git.js';
+import { cloneRepository, getHeadCommit, removeWorkspace } from './git.js';
 import { detectProject } from './project-detector.js';
 import { buildProject } from './build.js';
-import type { DeploymentJob } from '@shipyard/shared';
-
+import { PermanentDeploymentError, isRecordNotFound } from './errors.js';
 
 type DeploymentAttempt = {
   attemptsMade: number;
@@ -54,6 +55,8 @@ export async function processDeployment(
     `Inicio del intento ${attemptNumber}/${maxAttempts}`,
   );
 
+  let workspace: string | null = null;
+
   try {
     await prisma.deployment.update({
       where: { id: deploymentId },
@@ -68,12 +71,25 @@ export async function processDeployment(
       'Estado actualizado a BUILDING',
     );
 
-    const workspace = await cloneRepository(repositoryUrl, deploymentId);
+    workspace = await cloneRepository(repositoryUrl, deploymentId);
 
     await writeDeploymentLog(
       deploymentId,
       'INFO',
       'Repositorio clonado correctamente',
+    );
+
+    const commitSha = await getHeadCommit(workspace);
+
+    await prisma.deployment.update({
+      where: { id: deploymentId },
+      data: { commitSha },
+    });
+
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      `Commit: ${commitSha.slice(0, 7)}`,
     );
 
     const projectInfo = await detectProject(workspace);
@@ -85,7 +101,7 @@ export async function processDeployment(
     );
 
     if (projectInfo.type !== 'NODE') {
-      throw new Error(
+      throw new PermanentDeploymentError(
         `Tipo de proyecto no compatible para build: ${projectInfo.type}`,
       );
     }
@@ -141,10 +157,20 @@ export async function processDeployment(
       success: true,
       deploymentId,
       status: 'RUNNING' as const,
-      workspace,
     };
   } catch (error) {
-    const isLastAttempt = attemptNumber >= maxAttempts;
+    if (isRecordNotFound(error)) {
+      // El proyecto se borró mientras el job estaba en la cola: no hay nada
+      // que actualizar ni donde guardar logs.
+      console.warn(
+        `Deployment ${deploymentId}: ya no existe; se descarta el job`,
+      );
+
+      throw new UnrecoverableError('El deployment ya no existe');
+    }
+
+    const isPermanent = error instanceof PermanentDeploymentError;
+    const isLastAttempt = isPermanent || attemptNumber >= maxAttempts;
     const errorMessage =
       error instanceof Error ? error.message : String(error);
 
@@ -152,7 +178,9 @@ export async function processDeployment(
       await writeDeploymentLog(
         deploymentId,
         'ERROR',
-        `Falló el último intento (${attemptNumber}/${maxAttempts}): ${errorMessage}`,
+        isPermanent
+          ? `Error no recuperable: ${errorMessage}`
+          : `Falló el último intento (${attemptNumber}/${maxAttempts}): ${errorMessage}`,
       );
 
       try {
@@ -164,7 +192,9 @@ export async function processDeployment(
         await writeDeploymentLog(
           deploymentId,
           'ERROR',
-          'Estado actualizado a FAILED tras agotar los intentos',
+          isPermanent
+            ? 'Estado actualizado a FAILED'
+            : 'Estado actualizado a FAILED tras agotar los intentos',
         );
       } catch (databaseError) {
         console.error(
@@ -184,6 +214,19 @@ export async function processDeployment(
       );
     }
 
+    if (isPermanent) {
+      throw new UnrecoverableError(errorMessage);
+    }
+
     throw error;
+  } finally {
+    if (workspace) {
+      await removeWorkspace(workspace).catch((cleanupError) => {
+        console.error(
+          `No se pudo eliminar el workspace del deployment ${deploymentId}:`,
+          cleanupError,
+        );
+      });
+    }
   }
 }

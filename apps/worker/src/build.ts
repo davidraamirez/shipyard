@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { requestBuild } from './build-runner-client.js';
 import type { ProjectInfo } from './project-detector.js';
 import { getBuildCommands } from './build-strategy.js';
+import { PermanentDeploymentError } from './errors.js';
 
 const MAX_OUTPUT_LENGTH = 20_000;
 
@@ -17,7 +18,7 @@ export async function buildProject(
   projectInfo: ProjectInfo,
 ): Promise<BuildResult> {
   if (projectInfo.type !== 'NODE') {
-    throw new Error(
+    throw new PermanentDeploymentError(
       `No existe una estrategia de build para ${projectInfo.type}`,
     );
   }
@@ -26,7 +27,7 @@ export async function buildProject(
     .catch(() => null);
 
   if (!packageJson?.isFile()) {
-    throw new Error('No se encuentra package.json en el proyecto');
+    throw new PermanentDeploymentError('No se encuentra package.json en el proyecto');
   }
 
   const lockFiles = {
@@ -38,7 +39,7 @@ export async function buildProject(
   const manager = projectInfo.packageManager;
 
   if (!manager) {
-    throw new Error(
+    throw new PermanentDeploymentError(
       'No se ha detectado un gestor de paquetes compatible',
     );
   }
@@ -49,7 +50,7 @@ export async function buildProject(
     .catch(() => false);
 
   if (!hasLockFile) {
-    throw new Error(
+    throw new PermanentDeploymentError(
       `No se encuentra ${lockFile}. No se instalarán dependencias sin un lockfile.`,
     );
   }

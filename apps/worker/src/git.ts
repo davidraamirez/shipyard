@@ -1,25 +1,44 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, rm } from 'node:fs/promises';
+import path from 'node:path';
 import {
-  DEFAULT_WORKSPACES_DIR,
   getWorkspacePath,
   validateRepositoryUrl,
 } from '@shipyard/shared';
+import { WORKSPACES_DIR } from './config.js';
+import { PermanentDeploymentError } from './errors.js';
 
 const execFileAsync = promisify(execFile);
 
 const GIT_TIMEOUT_MS = 120_000;
 
+// Git sin configuración global ni de sistema y sin pedir credenciales.
+const GIT_ENV = {
+  ...process.env,
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+};
+
+function resolveWorkspace(repositoryUrl: string, deploymentId: string) {
+  try {
+    validateRepositoryUrl(repositoryUrl);
+    return getWorkspacePath(deploymentId, WORKSPACES_DIR);
+  } catch (error) {
+    throw new PermanentDeploymentError(
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
 export async function cloneRepository(
   repositoryUrl: string,
   deploymentId: string,
 ): Promise<string> {
-  validateRepositoryUrl(repositoryUrl);
+  const workspace = resolveWorkspace(repositoryUrl, deploymentId);
 
-  const workspace = getWorkspacePath(deploymentId);
-
-  await mkdir(DEFAULT_WORKSPACES_DIR, { recursive: true });
+  await mkdir(WORKSPACES_DIR, { recursive: true });
   await rm(workspace, { recursive: true, force: true });
   await mkdir(workspace, { recursive: true });
 
@@ -39,12 +58,7 @@ export async function cloneRepository(
       {
         timeout: GIT_TIMEOUT_MS,
         maxBuffer: 1024 * 1024,
-        env: {
-          ...process.env,
-          GIT_TERMINAL_PROMPT: '0',
-          GIT_CONFIG_NOSYSTEM: '1',
-          GIT_CONFIG_GLOBAL: '/dev/null',
-        },
+        env: GIT_ENV,
       },
     );
 
@@ -57,4 +71,35 @@ export async function cloneRepository(
 
     throw new Error(`No se pudo clonar el repositorio: ${message}`);
   }
+}
+
+export async function getHeadCommit(workspace: string): Promise<string> {
+  const { stdout } = await execFileAsync(
+    'git',
+    ['-C', workspace, 'rev-parse', 'HEAD'],
+    { timeout: 10_000, env: GIT_ENV },
+  );
+
+  const commitSha = stdout.trim();
+
+  if (!/^[0-9a-f]{40}$/.test(commitSha)) {
+    throw new Error('No se pudo obtener el commit del repositorio');
+  }
+
+  return commitSha;
+}
+
+// Solo borra directorios dentro de WORKSPACES_DIR.
+export async function removeWorkspace(workspace: string): Promise<void> {
+  const relativePath = path.relative(WORKSPACES_DIR, workspace);
+
+  if (
+    !relativePath ||
+    relativePath.startsWith('..') ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error('La ruta del workspace no está permitida');
+  }
+
+  await rm(workspace, { recursive: true, force: true });
 }
