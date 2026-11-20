@@ -46,19 +46,24 @@ pnpm dev:api | dev:worker | dev:web
 pnpm --filter @shipyard/database generate       # regenerate Prisma client after schema changes
 pnpm --filter @shipyard/database migrate:dev    # create/apply a migration (needs DATABASE_URL)
 
-pnpm --filter @shipyard/api test        # unit tests (Vitest)
-pnpm --filter @shipyard/api test:e2e    # e2e (*.e2e-spec.ts)
-pnpm --filter @shipyard/api lint        # oxlint
-pnpm --filter @shipyard/worker test
-pnpm --filter @shipyard/build-runner test
-pnpm --filter @shipyard/shared test
+# Whole repo (these build packages/database and packages/shared first)
+pnpm typecheck                          # tsc --noEmit in every package (web runs next typegen first)
+pnpm test                               # all unit tests (Vitest)
+pnpm test:e2e                           # API e2e (*.e2e-spec.ts, services mocked, no DB needed)
+pnpm lint                               # oxlint (api) + eslint (web)
+
+# One package
+pnpm --filter @shipyard/api test        # or worker / build-runner / shared
+pnpm --filter @shipyard/worker typecheck
 ```
 
 ## Conventions
 
 - ESM everywhere (`"type": "module"`): relative imports use the `.js` extension, even in `.ts` files.
 - Code identifiers and commits are in English (Conventional Commits: `feat(api): ...`). **User-facing and log messages are in Spanish.** Keep that split.
-- Tests live next to the code: `*.spec.ts` (unit), `*.e2e-spec.ts` (API e2e). Use Vitest.
+- Tests live next to the code: `*.spec.ts` (unit), `*.e2e-spec.ts` (API e2e). Use Vitest 5.
+- CI (`.github/workflows/ci.yml`) runs `typecheck`, `lint`, `test`, `test:e2e` and builds every Docker image; keep them green.
+- Tool versions are aligned across packages: TypeScript `5.9.3`, `@types/node` `^22` (forced by an override in `pnpm-workspace.yaml` to match the `node:22` images).
 - Ownership: never fetch a project or deployment by id alone. Always filter by `userId` inside the Prisma query (`where: { id, userId }` or `project: { userId }`), and return 404 (not 403) when nothing matches.
 - API input is validated with class-validator DTOs; the global `ValidationPipe` uses `whitelist` + `forbidNonWhitelisted`.
 - After editing `schema.prisma`, create a migration (never edit applied migrations) and regenerate the client.

@@ -60,6 +60,12 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
       - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,9 +95,10 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      build-runner:
+        condition: service_healthy
     volumes:
       - shipyard_workspaces:/app/workspaces
-
 
   build-runner:
     build:
@@ -112,9 +119,14 @@ services:
       NODE_ENV: production
       PORT: 8080
       BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?Falta BUILD_RUNNER_TOKEN}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - shipyard_workspaces:/app/workspaces:ro
-      
+
 volumes:
   postgres_data:
   shipyard_workspaces:
