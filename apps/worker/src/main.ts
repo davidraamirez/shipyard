@@ -1,12 +1,10 @@
 import { Worker } from 'bullmq';
 import { prisma } from './prisma.js';
-import {
-  processDeployment,
-  type DeploymentJob,
-} from './deployment.processor.js';
+import { DEPLOYMENTS_QUEUE, type DeploymentJob } from '@shipyard/shared';
+import { processDeployment } from './deployment.processor.js';
 
 const worker = new Worker<DeploymentJob>(
-  'deployments',
+  DEPLOYMENTS_QUEUE,
   async (job) => processDeployment(job.data, {
     attemptsMade: job.attemptsMade,
     maxAttempts: job.opts.attempts ?? 1,

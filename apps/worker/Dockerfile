@@ -7,12 +7,14 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/database/package.json ./packages/database/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
 RUN pnpm install --filter @shipyard/worker... --frozen-lockfile
 
 # Compilación y empaquetado solo con dependencias de producción
 FROM deps AS build
 COPY packages/database ./packages/database
+COPY packages/shared ./packages/shared
 COPY apps/worker ./apps/worker
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" pnpm --filter @shipyard/worker... build
 RUN pnpm --filter @shipyard/worker deploy --prod --legacy /prod/worker

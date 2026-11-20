@@ -3,10 +3,15 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "files": ["dist"],
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@shipyard/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

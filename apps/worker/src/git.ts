@@ -1,55 +1,15 @@
-
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import {
+  DEFAULT_WORKSPACES_DIR,
+  getWorkspacePath,
+  validateRepositoryUrl,
+} from '@shipyard/shared';
 
 const execFileAsync = promisify(execFile);
 
-const ALLOWED_HOSTS = new Set([
-  'github.com',
-  'gitlab.com',
-  'bitbucket.org',
-]);
-
-const WORKSPACES_DIR = '/app/workspaces';
 const GIT_TIMEOUT_MS = 120_000;
-
-export function validateRepositoryUrl(repositoryUrl: string): URL {
-  let url: URL;
-
-  try {
-    url = new URL(repositoryUrl);
-  } catch {
-    throw new Error('La URL del repositorio no es válida');
-  }
-
-  if (url.protocol !== 'https:') {
-    throw new Error('Solo se permiten repositorios HTTPS');
-  }
-
-  if (url.username || url.password) {
-    throw new Error('La URL no puede contener credenciales');
-  }
-
-  if (!ALLOWED_HOSTS.has(url.hostname.toLowerCase())) {
-    throw new Error('El proveedor Git no está permitido');
-  }
-
-  if (url.port && url.port !== '443') {
-    throw new Error('El puerto del repositorio no está permitido');
-  }
-
-  if (url.search || url.hash) {
-    throw new Error('La URL no puede contener parámetros ni fragmentos');
-  }
-
-  if (!/^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git\/?$/.test(url.pathname)) {
-    throw new Error('La ruta del repositorio no tiene un formato válido');
-  }
-
-  return url;
-}
 
 export async function cloneRepository(
   repositoryUrl: string,
@@ -57,13 +17,9 @@ export async function cloneRepository(
 ): Promise<string> {
   validateRepositoryUrl(repositoryUrl);
 
-  if (!/^[a-f0-9-]{36}$/i.test(deploymentId)) {
-    throw new Error('El identificador del deployment no es válido');
-  }
+  const workspace = getWorkspacePath(deploymentId);
 
-  const workspace = resolve(WORKSPACES_DIR, deploymentId);
-
-  await mkdir(WORKSPACES_DIR, { recursive: true });
+  await mkdir(DEFAULT_WORKSPACES_DIR, { recursive: true });
   await rm(workspace, { recursive: true, force: true });
   await mkdir(workspace, { recursive: true });
 

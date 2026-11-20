@@ -2,13 +2,8 @@ import { prisma } from './prisma.js';
 import { cloneRepository } from './git.js';
 import { detectProject } from './project-detector.js';
 import { buildProject } from './build.js';
+import type { DeploymentJob } from '@shipyard/shared';
 
-export type DeploymentJob = {
-  deploymentId: string;
-  projectId: string;
-  repositoryUrl: string;
-  requestedAt: string;
-};
 
 type DeploymentAttempt = {
   attemptsMade: number;

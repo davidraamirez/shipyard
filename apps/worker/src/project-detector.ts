@@ -1,13 +1,13 @@
-
 import { access, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join } from 'node:path';
+import type { PackageManager } from '@shipyard/shared';
 
 export type ProjectType = 'NODE' | 'UNKNOWN';
 
 export type ProjectInfo = {
   type: ProjectType;
-  packageManager: 'pnpm' | 'npm' | 'yarn' | null;
+  packageManager: PackageManager | null;
   buildScript: string | null;
 };
 

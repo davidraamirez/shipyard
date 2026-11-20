@@ -30,7 +30,7 @@ Deployment lifecycle: `POST /deployments` creates a `Deployment` (QUEUED) and en
 | `apps/worker/build-image` | — | Image `shipyard-build-node:22` used for sandboxed builds. |
 | `apps/web` | `@shipyard/web` | Next.js 16 + React 19 + Tailwind 4 client pages: login, projects list/new/detail. API calls through `src/lib/api.ts`. |
 | `packages/database` | `@shipyard/database` | Prisma 7 schema + migrations; exports the generated client and `createPrismaAdapter()`. |
-| `packages/types` | `@shipyard/types` | Shared types (currently unused). |
+| `packages/shared` | `@shipyard/shared` | Code shared by api, worker and build-runner, with no runtime dependencies: repository URL validation, workspace paths, build command allowlist, queue name and `DeploymentJob` contract. |
 
 ## Commands
 
@@ -48,7 +48,8 @@ pnpm --filter @shipyard/api test        # unit tests (Vitest)
 pnpm --filter @shipyard/api test:e2e    # e2e (*.e2e-spec.ts)
 pnpm --filter @shipyard/api lint        # oxlint
 pnpm --filter @shipyard/worker test
-pnpm --filter @shipyard/build-runner exec vitest run
+pnpm --filter @shipyard/build-runner test
+pnpm --filter @shipyard/shared test
 ```
 
 ## Conventions
@@ -62,17 +63,20 @@ pnpm --filter @shipyard/build-runner exec vitest run
 
 ## Security invariants (do not weaken)
 
-- Repository URLs: HTTPS only, hosts restricted to github.com/gitlab.com/bitbucket.org, no credentials, port, query or fragment, path `/<owner>/<repo>.git`. This is enforced in both the API validator and the worker's `git.ts`.
+- Repository URLs: HTTPS only, hosts restricted to github.com/gitlab.com/bitbucket.org, no credentials, port, query or fragment, path `/<owner>/<repo>.git`. Defined once in `packages/shared/src/repository-url.ts`, and checked both by the API validator and by the worker right before cloning.
 - Git clone: `--depth 1`, no submodules, `file`/`ext` protocols disabled, no global or system git config, no terminal prompt.
-- Builds: a lockfile is required; installs always use `--ignore-scripts`; the build-runner accepts only the exact command/argument combinations in `ALLOWED_COMMANDS`.
-- Workspace paths must resolve strictly inside `/app/workspaces` (see the `workspace-path.ts` files), and deployment ids must be UUIDs.
+- Builds: a lockfile is required; installs always use `--ignore-scripts`. `INSTALL_ARGS`/`BUILD_ARGS` in `packages/shared/src/build-commands.ts` are the only allowed commands: the worker generates from them and the build-runner rejects anything else.
+- Workspace paths must resolve strictly inside `/app/workspaces` and deployment ids must be UUIDs (`packages/shared/src/workspace-path.ts`).
 - Build containers: `--network none`, memory/CPU/PID limits, non-root user. The build-runner container is `read_only`, `cap_drop: ALL`, `no-new-privileges`.
 - Never commit `.env` files; secrets come from env (`JWT_SECRET`, `REDIS_PASSWORD`, `BUILD_RUNNER_TOKEN`, ...).
 
 ## Gotchas
 
 - `apps/web` uses Next.js 16, which has breaking changes. Read `apps/web/AGENTS.md` and the docs in `node_modules/next/dist/docs/` before changing web code.
-- The Prisma client is generated into `packages/database/src/generated/prisma` (git-ignored) and consumed from `dist/`. Run `pnpm --filter @shipyard/database build` before building or running the api/worker.
+- Internal packages are consumed from their `dist/`: run `pnpm --filter @shipyard/database --filter @shipyard/shared build` before building, testing or running the apps (the Prisma client is generated into `packages/database/src/generated/prisma`, git-ignored).
+- A new internal dependency must also be copied in the app's `Dockerfile` (both the `package.json` and the source).
+- Windows: run `docker compose build/up` from `D:\shipyard` (uppercase drive). From `d:\shipyard` Compose's bake fails with "additional privileges requested: --allow=fs.read=..." because the drive-letter case differs between context and Dockerfile paths.
+- Windows: a native PostgreSQL service on port 5432 blocks the compose `postgres` port mapping; stop it first.
 - The worker hardcodes `/app/workspaces`, so cloning only works inside the container (or on a machine where that path exists).
 - API config comes from env via `ConfigService`: `PORT` (default 3001), `WEB_ORIGIN` (comma-separated CORS origins, default `http://localhost:3000`), `REDIS_*`, `JWT_SECRET`, `DATABASE_URL`.
 - The web app stores the JWT in `sessionStorage` (`shipyard_access_token`); there is no refresh token.

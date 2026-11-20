@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { DEPLOYMENTS_QUEUE } from '@shipyard/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 type DependencyStatus = 'up' | 'down';
@@ -16,7 +17,7 @@ const REDIS_TIMEOUT_MS = 2_000;
 export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('deployments')
+    @InjectQueue(DEPLOYMENTS_QUEUE)
     private readonly deploymentsQueue: Queue,
   ) {}
 

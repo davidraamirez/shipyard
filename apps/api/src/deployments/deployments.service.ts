@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import {
+  DEPLOY_PROJECT_JOB,
+  DEPLOYMENTS_QUEUE,
+  type DeploymentJob,
+} from '@shipyard/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const DEPLOYMENT_JOB_OPTIONS = {
@@ -14,8 +19,8 @@ const DEPLOYMENT_JOB_OPTIONS = {
 @Injectable()
 export class DeploymentsService {
   constructor(
-    @InjectQueue('deployments')
-    private readonly deploymentsQueue: Queue,
+    @InjectQueue(DEPLOYMENTS_QUEUE)
+    private readonly deploymentsQueue: Queue<DeploymentJob>,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -110,7 +115,7 @@ export class DeploymentsService {
   ) {
     try {
       return await this.deploymentsQueue.add(
-        'deploy-project',
+        DEPLOY_PROJECT_JOB,
         {
           deploymentId,
           projectId,

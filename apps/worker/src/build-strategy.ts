@@ -1,9 +1,9 @@
+import {
+  BUILD_ARGS,
+  INSTALL_ARGS,
+  type BuildCommand,
+} from '@shipyard/shared';
 import type { ProjectInfo } from './project-detector.js';
-
-export type BuildCommand = {
-  command: 'pnpm' | 'npm' | 'yarn';
-  args: string[];
-};
 
 export function getBuildCommands(
   projectInfo: ProjectInfo,
@@ -22,27 +22,12 @@ export function getBuildCommands(
     );
   }
 
-  const installArgs = {
-    pnpm: ['install', '--frozen-lockfile', '--ignore-scripts'],
-    npm: ['ci', '--ignore-scripts'],
-    yarn: ['install', '--immutable', '--ignore-scripts'],
-  } as const;
-
   const commands: BuildCommand[] = [
-    {
-      command: manager,
-      args: [...installArgs[manager]],
-    },
+    { command: manager, args: [...INSTALL_ARGS[manager]] },
   ];
 
   if (projectInfo.buildScript) {
-    commands.push({
-      command: manager,
-      args:
-        manager === 'yarn'
-          ? ['run', 'build']
-          : ['run', 'build', '--ignore-scripts'],
-    });
+    commands.push({ command: manager, args: [...BUILD_ARGS[manager]] });
   }
 
   return commands;

@@ -1,6 +1,5 @@
-
 import { lstat } from 'node:fs/promises';
-import { getWorkspacePath } from './workspace-path.js';
+import { getWorkspacePath } from '@shipyard/shared';
 
 export async function requireWorkspace(
   deploymentId: string,

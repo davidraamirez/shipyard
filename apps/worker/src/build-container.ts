@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
-import type { BuildCommand } from './build-strategy.js';
-import { validateWorkspacePath } from './workspace-path.js';
+import { validateWorkspacePath, type BuildCommand } from '@shipyard/shared';
 
 const CONTAINER_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_OUTPUT_LENGTH = 20_000;
