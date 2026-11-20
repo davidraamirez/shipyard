@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/lib/api";
+import { ACCESS_TOKEN_KEY, apiRequest } from "@/lib/api";
 
 interface LoginResponse {
   access_token: string;
@@ -28,7 +29,7 @@ export default function LoginPage() {
 
       // Temporal: en el siguiente paso elegiremos cómo gestionar
       // el token de forma más segura.
-      sessionStorage.setItem("shipyard_access_token", result.access_token);
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, result.access_token);
 
       router.push("/");
     } catch (err) {
@@ -43,9 +44,9 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-100">
       <div className="w-full max-w-md">
-        <a href="/" className="text-3xl font-bold tracking-tight">
+        <Link href="/" className="text-3xl font-bold tracking-tight">
           Shipyard<span className="text-cyan-400">.</span>
-        </a>
+        </Link>
 
         <h1 className="mt-8 text-2xl font-semibold">Welcome back</h1>
         <p className="mt-2 text-sm text-slate-400">

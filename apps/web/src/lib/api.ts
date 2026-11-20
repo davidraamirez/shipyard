@@ -1,5 +1,37 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+export const ACCESS_TOKEN_KEY = "shipyard_access_token";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+// NestJS devuelve { message: string | string[], error, statusCode }.
+async function readErrorMessage(response: Response): Promise<string | null> {
+  const body = (await response.json().catch(() => null)) as {
+    message?: unknown;
+  } | null;
+
+  if (typeof body?.message === "string") {
+    return body.message;
+  }
+
+  if (
+    Array.isArray(body?.message) &&
+    body.message.every((item) => typeof item === "string")
+  ) {
+    return body.message.join(". ");
+  }
+
+  return null;
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -10,7 +42,7 @@ export async function apiRequest<T>(
 
   const token =
     typeof window !== "undefined"
-      ? sessionStorage.getItem("shipyard_access_token")
+      ? sessionStorage.getItem(ACCESS_TOKEN_KEY)
       : null;
 
   const headers = new Headers(options.headers);
@@ -26,15 +58,35 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error("Tu sesión ha caducado. Inicia sesión de nuevo.");
+    const serverMessage = await readErrorMessage(response);
+
+    if (response.status === 401 && token) {
+      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+
+      if (window.location.pathname !== "/login") {
+        // Recarga completa a propósito: no hay router fuera de los componentes
+        // y así se descarta cualquier estado de la sesión caducada.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign("/login");
+      }
+
+      throw new ApiError(
+        "Tu sesión ha caducado. Inicia sesión de nuevo.",
+        401,
+      );
     }
 
     if (response.status === 404) {
-      throw new Error("No se encontró el recurso solicitado.");
+      throw new ApiError(
+        serverMessage ?? "No se encontró el recurso solicitado.",
+        404,
+      );
     }
 
-    throw new Error(`Error de API: ${response.status}`);
+    throw new ApiError(
+      serverMessage ?? `Error de API: ${response.status}`,
+      response.status,
+    );
   }
 
   return response.json() as Promise<T>;

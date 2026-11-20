@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { apiRequest } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { ACCESS_TOKEN_KEY, apiRequest } from "@/lib/api";
 
 interface Project {
   id: string;
@@ -12,20 +13,21 @@ interface Project {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   function handleLogout() {
-    sessionStorage.removeItem("shipyard_access_token");
-    window.location.href = "/login";
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    router.push("/login");
   }
 
   useEffect(() => {
     async function loadProjects() {
       try {
-        const token = sessionStorage.getItem("shipyard_access_token");
+        const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
         if (!token) {
           setIsAuthenticated(false);
           setLoading(false);
@@ -117,14 +119,6 @@ export default function Home() {
                     Could not load projects
                   </p>
                   <p className="mt-2 text-sm text-red-300/80">{error}</p>
-                  {error.includes("401") && (
-                    <Link
-                      href="/login"
-                      className="mt-4 inline-block text-sm text-cyan-300 underline"
-                    >
-                      Sign in to continue
-                    </Link>
-                  )}
                 </div>
               )}
 
