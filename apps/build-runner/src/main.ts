@@ -1,4 +1,4 @@
-﻿import { createServer } from 'node:http';
+import { createServer } from 'node:http';
 import { validateBuildRequest } from './build-request.js';
 import { requireWorkspace } from './workspace.js';
 

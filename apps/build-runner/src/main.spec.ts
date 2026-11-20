@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Server } from 'node:http';
 import { createBuildRunnerServer } from './main.js';
 

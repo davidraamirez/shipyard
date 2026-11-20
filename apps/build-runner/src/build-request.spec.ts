@@ -16,17 +16,17 @@ describe('validateBuildRequest', () => {
     ],
   };
 
-  it('acepta una solicitud de build válida', () => {
+  it('acepta una solicitud de build vÃ¡lida', () => {
     expect(validateBuildRequest(validRequest)).toEqual(validRequest);
   });
 
-  it('rechaza un deploymentId no válido', () => {
+  it('rechaza un deploymentId no vÃ¡lido', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
         deploymentId: '../otro-directorio',
       }),
-    ).toThrow('deploymentId no válido');
+    ).toThrow('deploymentId no vÃ¡lido');
   });
 
   it('rechaza comandos de shell arbitrarios', () => {
@@ -40,7 +40,7 @@ describe('validateBuildRequest', () => {
           },
         ],
       }),
-    ).toThrow('Combinación de comando y argumentos no permitida');
+    ).toThrow('CombinaciÃ³n de comando y argumentos no permitida');
   });
 
   it('rechaza gestores de paquetes desconocidos', () => {
@@ -52,16 +52,16 @@ describe('validateBuildRequest', () => {
     ).toThrow('Gestor de paquetes no permitido');
   });
 
-  it('rechaza una lista vacía de comandos', () => {
+  it('rechaza una lista vacÃ­a de comandos', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
         commands: [],
       }),
-    ).toThrow('La lista de comandos no es válida');
+    ).toThrow('La lista de comandos no es vÃ¡lida');
   });
 
-  it('rechaza más de dos comandos', () => {
+  it('rechaza mÃ¡s de dos comandos', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
@@ -70,6 +70,6 @@ describe('validateBuildRequest', () => {
           validRequest.commands[0],
         ],
       }),
-    ).toThrow('La lista de comandos no es válida');
+    ).toThrow('La lista de comandos no es vÃ¡lida');
   });
 });

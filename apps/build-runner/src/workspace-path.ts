@@ -1,4 +1,4 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 
 const DEFAULT_WORKSPACES_DIR = '/app/workspaces';
 

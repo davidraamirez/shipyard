@@ -1,4 +1,4 @@
-﻿
+
 import { lstat } from 'node:fs/promises';
 import { getWorkspacePath } from './workspace-path.js';
 

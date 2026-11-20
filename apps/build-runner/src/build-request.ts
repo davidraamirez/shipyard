@@ -36,7 +36,7 @@ export function validateBuildRequest(value: unknown): BuildRequest {
     typeof request.deploymentId !== 'string' ||
     !/^[0-9a-f-]{36}$/i.test(request.deploymentId)
   ) {
-    throw new Error('deploymentId no válido');
+    throw new Error('deploymentId no vÃ¡lido');
   }
 
   if (
@@ -44,12 +44,12 @@ export function validateBuildRequest(value: unknown): BuildRequest {
     request.commands.length < 1 ||
     request.commands.length > 2
   ) {
-    throw new Error('La lista de comandos no es válida');
+    throw new Error('La lista de comandos no es vÃ¡lida');
   }
 
   const commands: BuildCommand[] = request.commands.map((value) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error('Comando no válido');
+      throw new Error('Comando no vÃ¡lido');
     }
 
     const command = value as Record<string, unknown>;
@@ -66,7 +66,7 @@ export function validateBuildRequest(value: unknown): BuildRequest {
       !Array.isArray(command.args) ||
       !command.args.every((arg) => typeof arg === 'string')
     ) {
-      throw new Error('Argumentos no válidos');
+      throw new Error('Argumentos no vÃ¡lidos');
     }
 
     const args = command.args as string[];
@@ -79,7 +79,7 @@ export function validateBuildRequest(value: unknown): BuildRequest {
     );
 
     if (!allowed) {
-      throw new Error('Combinación de comando y argumentos no permitida');
+      throw new Error('CombinaciÃ³n de comando y argumentos no permitida');
     }
 
     return { command: manager, args: [...args] };

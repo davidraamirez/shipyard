@@ -1,4 +1,4 @@
-﻿import type { BuildCommand } from './build-strategy.js';
+import type { BuildCommand } from './build-strategy.js';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
