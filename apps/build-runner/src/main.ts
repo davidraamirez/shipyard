@@ -56,7 +56,10 @@ export function createBuildRunnerServer(token: string | undefined) {
 
       try {
         const buildRequest = validateBuildRequest(JSON.parse(body));
-        await requireWorkspace(buildRequest.deploymentId);
+        await requireWorkspace(
+          buildRequest.deploymentId,
+          process.env.WORKSPACES_DIR || undefined,
+        );
 
         response.writeHead(501);
         response.end(

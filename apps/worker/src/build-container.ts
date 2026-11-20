@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { validateWorkspacePath, type BuildCommand } from '@shipyard/shared';
+import { WORKSPACES_DIR } from './config.js';
 
 const CONTAINER_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_OUTPUT_LENGTH = 20_000;
@@ -17,7 +18,7 @@ export type ContainerBuildResult = {
 export async function runBuildContainer(
   options: ContainerBuildOptions,
 ): Promise<ContainerBuildResult> {
-  const workspace = validateWorkspacePath(options.workspace);
+  const workspace = validateWorkspacePath(options.workspace, WORKSPACES_DIR);
   const script = options.commands
     .map(({ command, args }) => {
       const escapedArgs = [command, ...args]

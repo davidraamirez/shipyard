@@ -1,4 +1,5 @@
 import { Worker } from 'bullmq';
+import { WORKER_CONCURRENCY } from './config.js';
 import { prisma } from './prisma.js';
 import { DEPLOYMENTS_QUEUE, type DeploymentJob } from '@shipyard/shared';
 import { processDeployment } from './deployment.processor.js';
@@ -10,6 +11,7 @@ const worker = new Worker<DeploymentJob>(
     maxAttempts: job.opts.attempts ?? 1,
   }),
   {
+    concurrency: WORKER_CONCURRENCY,
     connection: {
       host: process.env.REDIS_HOST ?? '127.0.0.1',
       port: Number(process.env.REDIS_PORT ?? 6379),
@@ -30,7 +32,9 @@ worker.on('error', (error) => {
   console.error('Error del Worker:', error);
 });
 
-console.log('Shipyard worker conectado a la cola deployments');
+console.log(
+  `Shipyard worker conectado a la cola ${DEPLOYMENTS_QUEUE} (concurrencia ${WORKER_CONCURRENCY})`,
+);
 
 async function shutdown() {
   await worker.close();

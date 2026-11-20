@@ -16,7 +16,9 @@ web (Next.js :3000) ──HTTP/JWT──> api (NestJS :3001) ──BullMQ "deplo
                                                                    shipyard-build-node:22
 ```
 
-Deployment lifecycle: `POST /deployments` creates a `Deployment` (QUEUED) and enqueues a job (3 attempts, exponential backoff) → worker sets BUILDING, shallow-clones into `/app/workspaces/<deploymentId>`, detects the project type, requests a build from the build-runner, sets RUNNING, or FAILED after the last attempt. Every step is written to `DeploymentLog`.
+Deployment lifecycle: `POST /deployments` creates a `Deployment` (QUEUED) and enqueues a job (3 attempts, exponential backoff) → worker sets BUILDING, shallow-clones into `<WORKSPACES_DIR>/<deploymentId>`, stores `commitSha`, detects the project type, requests a build from the build-runner, sets RUNNING, or FAILED. The workspace is always deleted at the end. Every step is written to `DeploymentLog`.
+
+Worker error handling (`apps/worker/src/errors.ts`): throw `PermanentDeploymentError` for failures that retrying can't fix (unsupported project, missing lockfile, invalid URL); the processor marks FAILED immediately and rethrows a BullMQ `UnrecoverableError`. Any other error is retried until the last attempt. Prisma `P2025` (deployment deleted while queued) drops the job silently.
 
 **Current state:** the build-runner's `POST /build` returns 501 (not implemented), so every deployment currently ends FAILED. `apps/worker/src/build-container.ts` (an isolated `docker run`) is implemented and tested, but nothing calls it yet. The web app has no Deploy button or logs view yet. See the roadmap in `C:\Users\ramir\.claude\plans\vamos-a-planificar-la-cryptic-owl.md` if present.
 
@@ -77,6 +79,6 @@ pnpm --filter @shipyard/shared test
 - A new internal dependency must also be copied in the app's `Dockerfile` (both the `package.json` and the source).
 - Windows: run `docker compose build/up` from `D:\shipyard` (uppercase drive). From `d:\shipyard` Compose's bake fails with "additional privileges requested: --allow=fs.read=..." because the drive-letter case differs between context and Dockerfile paths.
 - Windows: a native PostgreSQL service on port 5432 blocks the compose `postgres` port mapping; stop it first.
-- The worker hardcodes `/app/workspaces`, so cloning only works inside the container (or on a machine where that path exists).
+- Worker config: `WORKSPACES_DIR` (default `/app/workspaces`, must match the build-runner's), `WORKER_CONCURRENCY` (default 1), `BUILD_RUNNER_URL`, `BUILD_RUNNER_TOKEN`. Cloning outside Docker needs `WORKSPACES_DIR` pointing to a writable directory.
 - API config comes from env via `ConfigService`: `PORT` (default 3001), `WEB_ORIGIN` (comma-separated CORS origins, default `http://localhost:3000`), `REDIS_*`, `JWT_SECRET`, `DATABASE_URL`.
 - The web app stores the JWT in `sessionStorage` (`shipyard_access_token`); there is no refresh token.
