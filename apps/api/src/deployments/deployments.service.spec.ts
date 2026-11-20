@@ -159,7 +159,7 @@ describe('DeploymentsService', () => {
         });
 
         expect(consoleError).toHaveBeenCalledWith(
-          expect.stringContaining('No se pudo actualizar el deployment'),
+          expect.stringContaining('No se pudo marcar como FAILED el deployment'),
           databaseError,
         );
       } finally {
@@ -311,7 +311,7 @@ describe('DeploymentsService', () => {
         });
 
         expect(consoleError).toHaveBeenCalledWith(
-          expect.stringContaining('No se pudo restaurar el estado'),
+          expect.stringContaining('No se pudo marcar como FAILED el deployment'),
           databaseError,
         );
       } finally {

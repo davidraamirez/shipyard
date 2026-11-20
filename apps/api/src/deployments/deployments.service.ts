@@ -3,6 +3,14 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 
+const DEPLOYMENT_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: {
+    type: 'exponential',
+    delay: 2000,
+  },
+} as const;
+
 @Injectable()
 export class DeploymentsService {
   constructor(
@@ -33,37 +41,12 @@ export class DeploymentsService {
         },
     });
 
-    let job 
-    try {
-      job = await this.deploymentsQueue.add('deploy-project', {
-          deploymentId: deployment.id,
-          projectId: project.id,
-          repositoryUrl: project.repositoryUrl,
-          requestedAt: new Date().toISOString(),
-        }, 
-        {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-        },
-      );
-    } catch (error) {  
-      try {
-        await this.prisma.deployment.update({
-          where: { id: deployment.id },
-          data: { status: 'FAILED' },
-        });
-      } catch (databaseError) {
-        console.error(
-          `No se pudo actualizar el deployment ${deployment.id}:`,
-          databaseError,
-        );
-      }
+    const job = await this.queueDeployment(
+      deployment.id,
+      project.id,
+      project.repositoryUrl,
+    );
 
-      throw error;
-    }
     return {
         message: 'Deployment añadido a la cola',
         deploymentId: deployment.id,
@@ -104,37 +87,11 @@ export class DeploymentsService {
       },
     });
 
-    let job;
-
-    try {
-      job = await this.deploymentsQueue.add('deploy-project', {
-          deploymentId: deployment.id,
-          projectId: deployment.projectId,
-          repositoryUrl: deployment.project.repositoryUrl,
-          requestedAt: new Date().toISOString(),
-        }, {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-        },
-      );
-    } catch (error) {
-      try {
-        await this.prisma.deployment.update({
-          where: { id: deployment.id },
-          data: { status: 'FAILED' },
-        });
-      } catch (databaseError) {
-        console.error(
-          `No se pudo restaurar el estado del deployment ${deployment.id}:`,
-          databaseError,
-        );
-      }
-
-      throw error;
-    }
+    const job = await this.queueDeployment(
+      deployment.id,
+      deployment.projectId,
+      deployment.project.repositoryUrl,
+    );
 
     return {
       message: 'Deployment añadido de nuevo a la cola',
@@ -143,6 +100,42 @@ export class DeploymentsService {
       status: 'QUEUED',
     };
   }
+
+  // Encola el job; si Redis falla, deja el deployment en FAILED para que
+  // no se quede en QUEUED para siempre, y propaga el error original.
+  private async queueDeployment(
+    deploymentId: string,
+    projectId: string,
+    repositoryUrl: string,
+  ) {
+    try {
+      return await this.deploymentsQueue.add(
+        'deploy-project',
+        {
+          deploymentId,
+          projectId,
+          repositoryUrl,
+          requestedAt: new Date().toISOString(),
+        },
+        DEPLOYMENT_JOB_OPTIONS,
+      );
+    } catch (error) {
+      try {
+        await this.prisma.deployment.update({
+          where: { id: deploymentId },
+          data: { status: 'FAILED' },
+        });
+      } catch (databaseError) {
+        console.error(
+          `No se pudo marcar como FAILED el deployment ${deploymentId}:`,
+          databaseError,
+        );
+      }
+
+      throw error;
+    }
+  }
+
   async findOne(id: string, userId: string) {
     return this.prisma.deployment.findFirst({
       where: {
