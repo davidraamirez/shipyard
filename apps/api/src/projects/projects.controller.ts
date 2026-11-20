@@ -4,6 +4,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Delete,
@@ -49,7 +50,7 @@ export class ProjectsController {
   @Get(':id')
   async findOne(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     const project = await this.projectsService.findOne(
       id,
@@ -66,7 +67,7 @@ export class ProjectsController {
   @Patch(':id')
   async update(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateProjectDto,
   ) {
     const project = await this.projectsService.update(
@@ -86,7 +87,7 @@ export class ProjectsController {
   @Delete(':id')
   async remove(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     const result = await this.projectsService.remove(
       id,

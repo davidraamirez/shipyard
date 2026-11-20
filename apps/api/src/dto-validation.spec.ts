@@ -5,6 +5,7 @@ import { LoginDto } from './auth/dto/login.dto.js';
 import { RegisterDto } from './auth/dto/register.dto.js';
 import { CreateProjectDto } from './projects/dto/create-project.dto.js';
 import { UpdateProjectDto } from './projects/dto/update-project.dto.js';
+import { CreateDeploymentDto } from './deployments/dto/create-deployment.dto.js';
 
 describe('DTO validation', () => {
   it('rechaza un email inválido en LoginDto', async () => {
@@ -86,6 +87,26 @@ describe('DTO validation', () => {
 
   it('acepta un UpdateProjectDto vacío', async () => {
     const dto = new UpdateProjectDto();
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rechaza un projectId que no es UUID en CreateDeploymentDto', async () => {
+    const dto = Object.assign(new CreateDeploymentDto(), {
+      projectId: 'no-es-un-uuid',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'projectId')).toBe(true);
+  });
+
+  it('acepta un CreateDeploymentDto con un UUID válido', async () => {
+    const dto = Object.assign(new CreateDeploymentDto(), {
+      projectId: '3f8a2b1c-4d5e-4f60-8a7b-9c0d1e2f3a4b',
+    });
 
     const errors = await validate(dto);
 

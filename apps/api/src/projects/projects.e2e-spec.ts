@@ -109,4 +109,18 @@ describe('Projects authentication (e2e)', () => {
 
     expect(projectsServiceMock.findAll).toHaveBeenCalledWith('user-1');
   });
+
+  it('responde 400 cuando el id no es un UUID', async () => {
+    const token = await jwtService.signAsync({
+      sub: 'user-1',
+      email: 'test@example.com',
+    });
+
+    await request(app.getHttpServer())
+      .get('/projects/no-es-un-uuid')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(projectsServiceMock.findOne).not.toHaveBeenCalled();
+  });
 });

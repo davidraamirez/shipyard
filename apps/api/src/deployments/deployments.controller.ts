@@ -5,12 +5,14 @@ import {
   Get,
   Param,
   NotFoundException,
+  ParseUUIDPipe,
   UseGuards,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { DeploymentsService } from './deployments.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { CreateDeploymentDto } from './dto/create-deployment.dto.js';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -29,11 +31,7 @@ export class DeploymentsController {
   @Post()
   async create(
     @Req() request: AuthenticatedRequest,
-    @Body()
-    body: {
-      projectId: string;
-      repositoryUrl: string;
-    },
+    @Body() body: CreateDeploymentDto,
   ) {
     return this.deploymentsService.enqueue(
       request.user.userId,
@@ -44,7 +42,7 @@ export class DeploymentsController {
   @Get(':id')
   async findOne(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     const deployment = await this.deploymentsService.findOne(
       id,
@@ -61,7 +59,7 @@ export class DeploymentsController {
   @Get('project/:projectId')
   findByProject(
     @Req() request: AuthenticatedRequest,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
   ) {
     return this.deploymentsService.findByProject(
       projectId,
@@ -72,7 +70,7 @@ export class DeploymentsController {
   @Post(':id/retry')
   async retry(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.deploymentsService.retry(
       id,
@@ -84,7 +82,7 @@ export class DeploymentsController {
   @Get(':id/logs')
   findLogs(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.deploymentsService.findLogs(
       id,
