@@ -74,5 +74,5 @@ pnpm --filter @shipyard/build-runner exec vitest run
 - `apps/web` uses Next.js 16, which has breaking changes. Read `apps/web/AGENTS.md` and the docs in `node_modules/next/dist/docs/` before changing web code.
 - The Prisma client is generated into `packages/database/src/generated/prisma` (git-ignored) and consumed from `dist/`. Run `pnpm --filter @shipyard/database build` before building or running the api/worker.
 - The worker hardcodes `/app/workspaces`, so cloning only works inside the container (or on a machine where that path exists).
-- CORS origin (`http://localhost:3000`) and the API port (3001) are hardcoded in `apps/api/src/main.ts`.
+- API config comes from env via `ConfigService`: `PORT` (default 3001), `WEB_ORIGIN` (comma-separated CORS origins, default `http://localhost:3000`), `REDIS_*`, `JWT_SECRET`, `DATABASE_URL`.
 - The web app stores the JWT in `sessionStorage` (`shipyard_access_token`); there is no refresh token.
