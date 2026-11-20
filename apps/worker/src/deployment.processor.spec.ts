@@ -229,34 +229,45 @@ describe('processDeployment', () => {
 
     await processDeployment(deploymentJob);
 
-    expect(prismaMock.deploymentLog.create).toHaveBeenCalledWith({
-      data: {
-        deploymentId: 'deployment-1',
-        level: 'INFO',
-        message: 'Inicio del intento 1/1',
-      },
-    });
+    const messages = prismaMock.deploymentLog.create.mock.calls.map(
+      ([args]) => args.data.message,
+    );
 
-    expect(prismaMock.deploymentLog.create).toHaveBeenCalledWith({
-      data: {
-        deploymentId: 'deployment-1',
-        level: 'INFO',
-        message: 'Estado actualizado a BUILDING',
-      },
-    });
-
-    expect(prismaMock.deploymentLog.create).toHaveBeenCalledWith({
-      data: {
-        deploymentId: 'deployment-1',
-        level: 'INFO',
-        message: 'Clonado completado. Estado actualizado a RUNNING',
-      },
-    });
+    expect(messages).toEqual([
+      'Inicio del intento 1/1',
+      'Estado actualizado a BUILDING',
+      'Repositorio clonado correctamente',
+      'Tipo de proyecto detectado: NODE',
+      'Gestor de paquetes: pnpm',
+      'Script build: build',
+      'Iniciando build del proyecto',
+      'Build completado correctamente',
+      'Build completado',
+      'Estado actualizado a RUNNING',
+    ]);
 
     expect(gitMock.cloneRepository).toHaveBeenCalledWith(
       'https://github.com/example/app',
       'deployment-1',
     );
+  });
+
+  it('falla sin ejecutar el build si el tipo de proyecto no es compatible', async () => {
+    detectorMock.detectProject.mockResolvedValueOnce({
+      type: 'UNKNOWN',
+      packageManager: null,
+      buildScript: null,
+    });
+
+    await expect(processDeployment(deploymentJob)).rejects.toThrow(
+      'Tipo de proyecto no compatible para build: UNKNOWN',
+    );
+
+    expect(buildMock.buildProject).not.toHaveBeenCalled();
+    expect(prismaMock.deployment.update).toHaveBeenLastCalledWith({
+      where: { id: 'deployment-1' },
+      data: { status: 'FAILED' },
+    });
   });
 
   it('registra un WARN cuando un intento falla y quedan reintentos', async () => {

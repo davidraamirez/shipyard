@@ -75,6 +75,12 @@ export async function processDeployment(
 
     const workspace = await cloneRepository(repositoryUrl, deploymentId);
 
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      'Repositorio clonado correctamente',
+    );
+
     const projectInfo = await detectProject(workspace);
 
     await writeDeploymentLog(
@@ -83,49 +89,45 @@ export async function processDeployment(
       `Tipo de proyecto detectado: ${projectInfo.type}`,
     );
 
-    if (projectInfo.type === 'NODE') {
-      await writeDeploymentLog(
-        deploymentId,
-        'INFO',
-        `Gestor de paquetes: ${projectInfo.packageManager ?? 'no detectado'}`,
-      );
-
-      await writeDeploymentLog(
-        deploymentId,
-        'INFO',
-        `Script build: ${projectInfo.buildScript ?? 'no definido'}`,
-      );
-    }
-
-    if (projectInfo.type === 'NODE') {
-      await writeDeploymentLog(
-        deploymentId,
-        'INFO',
-        'Iniciando build del proyecto',
-      );
-
-      const buildResult = await buildProject(
-        deploymentId,
-        workspace,
-        projectInfo,
-      );
-      
-      await writeDeploymentLog(
-        deploymentId,
-        'INFO',
-        `Build completado correctamente. ${buildResult.output}`,
-      );
-    } else {
+    if (projectInfo.type !== 'NODE') {
       throw new Error(
         `Tipo de proyecto no compatible para build: ${projectInfo.type}`,
       );
     }
-    
+
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      `Repositorio clonado correctamente en ${workspace}`,
+      `Gestor de paquetes: ${projectInfo.packageManager ?? 'no detectado'}`,
     );
+
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      `Script build: ${projectInfo.buildScript ?? 'no definido'}`,
+    );
+
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      'Iniciando build del proyecto',
+    );
+
+    const buildResult = await buildProject(
+      deploymentId,
+      workspace,
+      projectInfo,
+    );
+
+    await writeDeploymentLog(
+      deploymentId,
+      'INFO',
+      'Build completado correctamente',
+    );
+
+    if (buildResult.output.trim()) {
+      await writeDeploymentLog(deploymentId, 'INFO', buildResult.output);
+    }
 
     await prisma.deployment.update({
       where: { id: deploymentId },
@@ -137,7 +139,7 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Clonado completado. Estado actualizado a RUNNING',
+      'Estado actualizado a RUNNING',
     );
 
     return {
