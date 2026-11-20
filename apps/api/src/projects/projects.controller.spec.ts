@@ -24,12 +24,10 @@ import { ProjectsController } from './projects.controller.js';
 describe('ProjectsController', () => {
   let controller: ProjectsController;
 
-  const request = {
-    user: {
-      userId: 'user-1',
-      email: 'bob@example.com',
-    },
-  } as any;
+  const user = {
+    userId: 'user-1',
+    email: 'bob@example.com',
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,7 +45,7 @@ describe('ProjectsController', () => {
     const projects = [{ id: 'project-1', name: 'Shipyard' }];
     mocks.findAll.mockResolvedValue(projects);
 
-    await expect(controller.findAll(request)).resolves.toEqual(projects);
+    await expect(controller.findAll(user)).resolves.toEqual(projects);
 
     expect(mocks.findAll).toHaveBeenCalledWith('user-1');
   });
@@ -61,7 +59,7 @@ describe('ProjectsController', () => {
 
     mocks.create.mockResolvedValue(project);
 
-    await expect(controller.create(request, body as any))
+    await expect(controller.create(user, body as any))
       .resolves.toEqual(project);
 
     expect(mocks.create).toHaveBeenCalledWith('user-1', body);
@@ -72,7 +70,7 @@ describe('ProjectsController', () => {
     mocks.findOne.mockResolvedValue(project);
 
     await expect(
-      controller.findOne(request, 'project-1'),
+      controller.findOne(user, 'project-1'),
     ).resolves.toEqual(project);
 
     expect(mocks.findOne).toHaveBeenCalledWith('project-1', 'user-1');
@@ -82,7 +80,7 @@ describe('ProjectsController', () => {
     mocks.findOne.mockResolvedValue(null);
 
     await expect(
-      controller.findOne(request, 'missing-project'),
+      controller.findOne(user, 'missing-project'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -92,7 +90,7 @@ describe('ProjectsController', () => {
     mocks.update.mockResolvedValue(project);
 
     await expect(
-      controller.update(request, 'project-1', body as any),
+      controller.update(user, 'project-1', body as any),
     ).resolves.toEqual(project);
 
     expect(mocks.update).toHaveBeenCalledWith(
@@ -106,7 +104,7 @@ describe('ProjectsController', () => {
     mocks.update.mockResolvedValue(null);
 
     await expect(
-      controller.update(request, 'missing-project', { name: 'Otro' } as any),
+      controller.update(user, 'missing-project', { name: 'Otro' } as any),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -114,7 +112,7 @@ describe('ProjectsController', () => {
     mocks.remove.mockResolvedValue({ deleted: true });
 
     await expect(
-      controller.remove(request, 'project-1'),
+      controller.remove(user, 'project-1'),
     ).resolves.toEqual({ deleted: true });
 
     expect(mocks.remove).toHaveBeenCalledWith('project-1', 'user-1');
@@ -124,7 +122,7 @@ describe('ProjectsController', () => {
     mocks.remove.mockResolvedValue(null);
 
     await expect(
-      controller.remove(request, 'missing-project'),
+      controller.remove(user, 'missing-project'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

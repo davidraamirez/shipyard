@@ -22,12 +22,10 @@ import { DeploymentsController } from './deployments.controller.js';
 describe('DeploymentsController', () => {
   let controller: DeploymentsController;
 
-  const request = {
-    user: {
-      userId: 'user-1',
-      email: 'bob@example.com',
-    },
-  } as any;
+  const user = {
+    userId: 'user-1',
+    email: 'bob@example.com',
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,7 +52,7 @@ describe('DeploymentsController', () => {
     mocks.enqueue.mockResolvedValue(result);
 
     await expect(
-      controller.create(request, body),
+      controller.create(user, body),
     ).resolves.toEqual(result);
 
     expect(mocks.enqueue).toHaveBeenCalledWith(
@@ -71,7 +69,7 @@ describe('DeploymentsController', () => {
     mocks.findOne.mockResolvedValue(deployment);
 
     await expect(
-      controller.findOne(request, 'deployment-1'),
+      controller.findOne(user, 'deployment-1'),
     ).resolves.toEqual(deployment);
 
     expect(mocks.findOne).toHaveBeenCalledWith(
@@ -84,7 +82,7 @@ describe('DeploymentsController', () => {
     mocks.findOne.mockResolvedValue(null);
 
     await expect(
-      controller.findOne(request, 'missing-deployment'),
+      controller.findOne(user, 'missing-deployment'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -96,7 +94,7 @@ describe('DeploymentsController', () => {
     mocks.findByProject.mockResolvedValue(deployments);
 
     await expect(
-      controller.findByProject(request, 'project-1'),
+      controller.findByProject(user, 'project-1'),
     ).resolves.toEqual(deployments);
 
     expect(mocks.findByProject).toHaveBeenCalledWith(
@@ -114,7 +112,7 @@ describe('DeploymentsController', () => {
     mocks.retry.mockResolvedValue(result);
 
     await expect(
-      controller.retry(request, 'deployment-1'),
+      controller.retry(user, 'deployment-1'),
     ).resolves.toEqual(result);
 
     expect(mocks.retry).toHaveBeenCalledWith(

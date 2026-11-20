@@ -7,19 +7,14 @@ import {
   NotFoundException,
   ParseUUIDPipe,
   UseGuards,
-  Req,
 } from '@nestjs/common';
-import type { Request } from 'express';
 import { DeploymentsService } from './deployments.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../auth/current-user.decorator.js';
 import { CreateDeploymentDto } from './dto/create-deployment.dto.js';
-
-interface AuthenticatedRequest extends Request {
-  user: {
-    userId: string;
-    email: string;
-  };
-}
 
 @Controller('deployments')
 @UseGuards(JwtAuthGuard)
@@ -30,23 +25,23 @@ export class DeploymentsController {
 
   @Post()
   async create(
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: CreateDeploymentDto,
   ) {
     return this.deploymentsService.enqueue(
-      request.user.userId,
+      user.userId,
       body.projectId,
     );
   }
 
   @Get(':id')
   async findOne(
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     const deployment = await this.deploymentsService.findOne(
       id,
-      request.user.userId,
+      user.userId,
     );
 
     if (!deployment) {
@@ -58,35 +53,35 @@ export class DeploymentsController {
 
   @Get('project/:projectId')
   findByProject(
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('projectId', ParseUUIDPipe) projectId: string,
   ) {
     return this.deploymentsService.findByProject(
       projectId,
-      request.user.userId,
+      user.userId,
     );
   }
 
   @Post(':id/retry')
   async retry(
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.deploymentsService.retry(
       id,
-      request.user.userId,
+      user.userId,
     );
   }
 
   
   @Get(':id/logs')
   findLogs(
-    @Req() request: AuthenticatedRequest,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.deploymentsService.findLogs(
       id,
-      request.user.userId,
+      user.userId,
     );
   }
 
