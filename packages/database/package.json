@@ -13,6 +13,7 @@
     }
   },
   "scripts": {
+    "typecheck": "prisma generate && tsc --noEmit",
     "generate": "prisma generate",
     "build": "prisma generate && tsc",
     "migrate:dev": "prisma migrate dev",
@@ -25,7 +26,7 @@
     "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^22.0.0",
     "dotenv": "^18.0.6",
     "prisma": "7.10.0",
     "typescript": "5.9.3"

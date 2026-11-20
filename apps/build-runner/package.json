@@ -5,6 +5,7 @@
   "type": "module",
   "files": ["dist"],
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "dev": "tsx watch src/main.ts",
     "build": "tsc",
     "start": "node dist/main.js",
@@ -16,7 +17,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0",
+    "typescript": "5.9.3",
     "vitest": "^5.0.5"
   }
 }
