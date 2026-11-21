@@ -53,6 +53,8 @@ jobs:
             dockerfile: apps/build-runner/Dockerfile
           - image: migrate
             dockerfile: packages/database/Dockerfile
+          - image: build-node
+            dockerfile: apps/build-runner/build-image/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
