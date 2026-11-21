@@ -6,6 +6,7 @@ import {
   Param,
   NotFoundException,
   ParseUUIDPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { DeploymentsService } from './deployments.service.js';
@@ -15,6 +16,7 @@ import {
   type AuthenticatedUser,
 } from '../auth/current-user.decorator.js';
 import { CreateDeploymentDto } from './dto/create-deployment.dto.js';
+import { FindLogsQueryDto } from './dto/find-logs-query.dto.js';
 
 @Controller('deployments')
 @UseGuards(JwtAuthGuard)
@@ -45,7 +47,7 @@ export class DeploymentsController {
     );
 
     if (!deployment) {
-      throw new NotFoundException('Deployment no encontrado');
+      throw new NotFoundException('Deployment not found');
     }
 
     return deployment;
@@ -78,10 +80,12 @@ export class DeploymentsController {
   findLogs(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: FindLogsQueryDto,
   ) {
     return this.deploymentsService.findLogs(
       id,
       user.userId,
+      query.after,
     );
   }
 

@@ -1,66 +1,39 @@
-
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { DeploymentStatusBadge } from "@/components/deployment-status-badge";
 import { apiRequest } from "@/lib/api";
+import {
+  isActiveStatus,
+  type EnqueueDeploymentResponse,
+  type Project,
+  type ProjectWithDeployments,
+} from "@/lib/types";
 
-interface Deployment {
-  id: string;
-  status: string;
-  commitSha: string | null;
-  createdAt: string;
-}
+const POLL_INTERVAL_MS = 3000;
 
-interface Project {
-  id: string;
-  name: string;
-  repositoryUrl: string;
-  createdAt: string;
-  deployments: Deployment[];
-}
+export default function ProjectDetailPage() {
+  const { id: projectId } = useParams<{ id: string }>();
+  const router = useRouter();
 
-
-
-function DeploymentStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    QUEUED: "border-slate-700 bg-slate-800 text-slate-300",
-    BUILDING: "border-blue-800 bg-blue-950 text-blue-300",
-    TESTING: "border-purple-800 bg-purple-950 text-purple-300",
-    DEPLOYING: "border-amber-800 bg-amber-950 text-amber-300",
-    RUNNING: "border-emerald-800 bg-emerald-950 text-emerald-300",
-    FAILED: "border-red-800 bg-red-950 text-red-300",
-  };
-
-  const style =
-    styles[status] ?? "border-slate-700 bg-slate-800 text-slate-300";
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${style}`}
-    >
-      {status}
-    </span>
-  );
-}
-
-
-function ProjectDetailContent() {
-  
-  const params = useParams<{ id: string }>();
-  const projectId = params.id;
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<ProjectWithDeployments | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const router = useRouter();
+  // Changing it reloads the project (after a retry, for example).
+  const [reloadKey, setReloadKey] = useState(0);
+
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
+  const [deploying, setDeploying] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -68,7 +41,7 @@ function ProjectDetailContent() {
 
     async function loadProject() {
       try {
-        const result = await apiRequest<Project>(
+        const result = await apiRequest<ProjectWithDeployments>(
           `/projects/${projectId}`,
         );
 
@@ -79,30 +52,15 @@ function ProjectDetailContent() {
         setRepositoryUrl(result.repositoryUrl);
         setError("");
 
-        const hasActiveDeployments = result.deployments.some(
-          (deployment) =>
-            ["QUEUED", "BUILDING", "TESTING", "DEPLOYING"].includes(
-              deployment.status,
-            ),
-        );
-
-        if (hasActiveDeployments) {
-          timeoutId = setTimeout(() => {
-            void loadProject();
-          }, 3000);
+        // Refresh while any deployment is in progress.
+        if (result.deployments.some((d) => isActiveStatus(d.status))) {
+          timeoutId = setTimeout(() => void loadProject(), POLL_INTERVAL_MS);
         }
       } catch (err) {
         if (!active) return;
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "No se pudo cargar el proyecto",
-        );
+        setError(err instanceof Error ? err.message : "Could not load the project");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
@@ -110,14 +68,42 @@ function ProjectDetailContent() {
 
     return () => {
       active = false;
-
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
     };
-  }, [projectId]);
+  }, [projectId, reloadKey]);
 
-  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+  async function handleDeploy() {
+    setDeploying(true);
+    setActionError("");
+
+    try {
+      const result = await apiRequest<EnqueueDeploymentResponse>("/deployments", {
+        method: "POST",
+        body: JSON.stringify({ projectId }),
+      });
+
+      router.push(`/deployments/${result.deploymentId}`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not start the deployment");
+      setDeploying(false);
+    }
+  }
+
+  async function handleRetry(deploymentId: string) {
+    setRetryingId(deploymentId);
+    setActionError("");
+
+    try {
+      await apiRequest(`/deployments/${deploymentId}/retry`, { method: "POST" });
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not retry the deployment");
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setSaveError("");
@@ -128,76 +114,53 @@ function ProjectDetailContent() {
         body: JSON.stringify({ name, repositoryUrl }),
       });
 
-      setProject((current) =>
-        current ? { ...current, ...updated } : updated,
-      );
+      setProject((current) => (current ? { ...current, ...updated } : current));
       setEditing(false);
-      router.refresh();
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : "No se pudo guardar el proyecto",
-      );
+      setSaveError(err instanceof Error ? err.message : "Could not save the project");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    const confirmed = window.confirm(
-      `¿Seguro que quieres eliminar el proyecto "${project?.name}"?`,
-    );
-
-    if (!confirmed) return;
+    if (!window.confirm(`Delete project "${project?.name}"? This cannot be undone.`)) {
+      return;
+    }
 
     setDeleting(true);
-    setDeleteError("");
+    setActionError("");
 
     try {
-      await apiRequest<{ deleted: boolean }>(`/projects/${projectId}`, {
-        method: "DELETE",
-      });
-
+      await apiRequest(`/projects/${projectId}`, { method: "DELETE" });
       router.push("/");
     } catch (err) {
-      setDeleteError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo eliminar el proyecto",
-      );
-    } finally {
+      setActionError(err instanceof Error ? err.message : "Could not delete the project");
       setDeleting(false);
     }
   }
+
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
-      <div className="mx-auto max-w-4xl">
-        <Link
-          href="/"
-          className="mt-4 inline-block text-sm text-cyan-300 underline"
-        >
+    <>
+      <Link href="/" className="text-sm text-cyan-300 hover:underline">
         ← Back to projects
-        </Link>
+      </Link>
 
-        {loading && (
-          <p className="mt-8 text-slate-400">Loading project...</p>
-        )}
+      {loading && <p className="mt-8 text-slate-400">Loading project...</p>}
 
-        {error && (
-          <div className="mt-8 rounded-xl border border-red-900 bg-red-950/30 p-5">
-            <h1 className="font-semibold text-red-300">
-              Could not load project
-            </h1>
-            <p className="mt-2 text-sm text-red-300/80">{error}</p>
-          </div>
-        )}
+      {error && (
+        <div className="mt-8 rounded-xl border border-red-900 bg-red-950/30 p-5">
+          <h1 className="font-semibold text-red-300">Could not load project</h1>
+          <p className="mt-2 text-sm text-red-300/80">{error}</p>
+        </div>
+      )}
 
-        {project && (
-          <>
-            <header className="mt-8">
+      {project && (
+        <>
+          <header className="mt-8 flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
               <p className="text-sm text-slate-400">Project</p>
-              <h1 className="mt-2 text-3xl font-bold">
-                {project.name}
-              </h1>
+              <h1 className="mt-2 text-3xl font-bold">{project.name}</h1>
               <a
                 href={project.repositoryUrl}
                 target="_blank"
@@ -206,132 +169,142 @@ function ProjectDetailContent() {
               >
                 {project.repositoryUrl}
               </a>
-              <p className="mt-3 text-sm text-slate-500">
-                Created{" "}
-                {new Date(project.createdAt).toLocaleDateString()}
+              <p className="mt-2 text-sm text-slate-500">
+                Created {new Date(project.createdAt).toLocaleDateString()}
               </p>
-              <button
-                type="button"
-                onClick={() => setEditing((current) => !current)}
-                className="mt-5 rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800"
-              >
-                {editing ? "Cancel editing" : "Edit project"}
-              </button>
+            </div>
 
-              {editing && (
-                <form
-                  onSubmit={handleSave}
-                  className="mt-5 space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-5"
-                >
-                  <div>
-                    <label htmlFor="project-name" className="mb-2 block text-sm">
-                      Project name
-                    </label>
-                    <input
-                      id="project-name"
-                      required
-                      maxLength={100}
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                    />
-                  </div>
+            <button
+              type="button"
+              onClick={handleDeploy}
+              disabled={deploying}
+              className="rounded-lg bg-cyan-400 px-5 py-2.5 font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-60"
+            >
+              {deploying ? "Deploying..." : "Deploy"}
+            </button>
+          </header>
 
-                  <div>
-                    <label htmlFor="repository-url" className="mb-2 block text-sm">
-                      Repository URL
-                    </label>
-                    <input
-                      id="repository-url"
-                      type="url"
-                      required
-                      value={repositoryUrl}
-                      onChange={(event) => setRepositoryUrl(event.target.value)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                    />
-                  </div>
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setEditing((current) => !current)}
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800"
+            >
+              {editing ? "Cancel editing" : "Edit project"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-300 hover:bg-red-950 disabled:opacity-60"
+            >
+              {deleting ? "Deleting..." : "Delete project"}
+            </button>
+          </div>
 
-                  {saveError && (
-                    <p role="alert" className="text-sm text-red-400">
-                      {saveError}
-                    </p>
-                  )}
+          {actionError && (
+            <p role="alert" className="mt-4 text-sm text-red-400">
+              {actionError}
+            </p>
+          )}
 
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950 disabled:opacity-60"
-                  >
-                    {saving ? "Saving..." : "Save changes"}
-                  </button>
-                </form>
-              )}
+          {editing && (
+            <form
+              onSubmit={handleSave}
+              className="mt-5 space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-5"
+            >
+              <div>
+                <label htmlFor="project-name" className="mb-2 block text-sm">
+                  Project name
+                </label>
+                <input
+                  id="project-name"
+                  required
+                  maxLength={100}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                />
+              </div>
 
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="ml-3 mt-5 rounded-lg border border-red-900 px-4 py-2 text-sm text-red-300 hover:bg-red-950 disabled:opacity-60"
-              >
-                {deleting ? "Deleting..." : "Delete project"}
-              </button>
+              <div>
+                <label htmlFor="repository-url" className="mb-2 block text-sm">
+                  Repository URL
+                </label>
+                <input
+                  id="repository-url"
+                  type="url"
+                  required
+                  value={repositoryUrl}
+                  onChange={(event) => setRepositoryUrl(event.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                />
+              </div>
 
-              {deleteError && (
-                <p role="alert" className="mt-3 text-sm text-red-400">
-                  {deleteError}
+              {saveError && (
+                <p role="alert" className="text-sm text-red-400">
+                  {saveError}
                 </p>
               )}
-            </header>
 
-            <section className="mt-10">
-              <h2 className="text-xl font-semibold">Deployments</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Deployment history for this project.
-              </p>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950 disabled:opacity-60"
+              >
+                {saving ? "Saving..." : "Save changes"}
+              </button>
+            </form>
+          )}
 
-              {project.deployments.length === 0 ? (
-                <div className="mt-5 rounded-xl border border-dashed border-slate-700 p-8 text-center">
-                  <h3 className="font-medium">No deployments yet</h3>
-                  <p className="mt-2 text-sm text-slate-400">
-                    Your deployments will appear here when you deploy this project.
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-5 space-y-3">
-                  {project.deployments.map((deployment) => (
-                    <article
-                      key={deployment.id}
-                      className="rounded-xl border border-slate-800 bg-slate-900 p-4"
+          <section className="mt-10">
+            <h2 className="text-xl font-semibold">Deployments</h2>
+
+            {project.deployments.length === 0 ? (
+              <div className="mt-5 rounded-xl border border-dashed border-slate-700 p-8 text-center">
+                <h3 className="font-medium">No deployments yet</h3>
+                <p className="mt-2 text-sm text-slate-400">
+                  Press Deploy to build the latest commit of this repository.
+                </p>
+              </div>
+            ) : (
+              <ul className="mt-5 space-y-3">
+                {project.deployments.map((deployment) => (
+                  <li
+                    key={deployment.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 hover:border-slate-700"
+                  >
+                    <Link
+                      href={`/deployments/${deployment.id}`}
+                      className="flex min-w-0 flex-1 flex-wrap items-center gap-4"
                     >
                       <DeploymentStatusBadge status={deployment.status} />
-                      <p className="mt-1 text-xs text-slate-400">
-                        Commit: {deployment.commitSha ?? "Not specified"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <span className="font-mono text-xs text-slate-400">
+                        {deployment.commitSha?.slice(0, 7) ?? "—"}
+                      </span>
+                      <span className="text-xs text-slate-500">
                         {new Date(deployment.createdAt).toLocaleString()}
-                      </p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
-    </main>
-  );
-}
+                      </span>
+                      <span className="ml-auto text-sm text-cyan-300">View logs →</span>
+                    </Link>
 
-export default function ProjectDetailPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen bg-slate-950 p-8 text-slate-100">
-          <p className="text-slate-400">Loading project...</p>
-        </main>
-      }
-    >
-      <ProjectDetailContent />
-    </Suspense>
+                    {deployment.status === "FAILED" && (
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(deployment.id)}
+                        disabled={retryingId === deployment.id}
+                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm hover:bg-slate-800 disabled:opacity-60"
+                      >
+                        {retryingId === deployment.id ? "Retrying..." : "Retry"}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+    </>
   );
 }

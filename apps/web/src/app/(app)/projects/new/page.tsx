@@ -4,12 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
-
-interface Project {
-  id: string;
-  name: string;
-  repositoryUrl: string;
-}
+import type { Project } from "@/lib/types";
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -24,16 +19,15 @@ export default function NewProjectPage() {
     setLoading(true);
 
     try {
-      await apiRequest<Project>("/projects", {
+      const project = await apiRequest<Project>("/projects", {
         method: "POST",
         body: JSON.stringify({ name, repositoryUrl }),
       });
 
-      router.push("/");
-      router.refresh();
+      router.push(`/projects/${project.id}`);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo crear el proyecto",
+        err instanceof Error ? err.message : "Could not create the project",
       );
     } finally {
       setLoading(false);
@@ -41,8 +35,7 @@ export default function NewProjectPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-100">
-      <div className="mx-auto max-w-xl">
+    <div className="max-w-xl">
         <Link href="/" className="text-sm text-cyan-300 hover:text-cyan-200">
           ← Back to projects
         </Link>
@@ -84,11 +77,11 @@ export default function NewProjectPage() {
               required
               value={repositoryUrl}
               onChange={(event) => setRepositoryUrl(event.target.value)}
-              placeholder="https://github.com/user/repository"
+              placeholder="https://github.com/user/repository.git"
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-cyan-400"
             />
             <p className="mt-2 text-xs text-slate-500">
-              Use the HTTPS URL of your Git repository.
+              HTTPS URL of a GitHub, GitLab or Bitbucket repository, ending in .git.
             </p>
           </div>
 
@@ -106,7 +99,6 @@ export default function NewProjectPage() {
             {loading ? "Creating project..." : "Create project"}
           </button>
         </form>
-      </div>
-    </main>
+    </div>
   );
 }

@@ -38,7 +38,7 @@ describe('DeploymentsController', () => {
     } as any);
   });
 
-  it('debe crear un deployment para el usuario autenticado', async () => {
+  it('creates a deployment for the authenticated user', async () => {
     const body = {
       projectId: 'project-1',
       repositoryUrl: 'https://github.com/example/shipyard',
@@ -61,7 +61,7 @@ describe('DeploymentsController', () => {
     );
   });
 
-  it('debe devolver un deployment existente', async () => {
+  it('returns an existing deployment', async () => {
     const deployment = {
       id: 'deployment-1',
       status: 'RUNNING',
@@ -78,7 +78,7 @@ describe('DeploymentsController', () => {
     );
   });
 
-  it('debe lanzar NotFoundException si el deployment no existe', async () => {
+  it('throws NotFoundException if the deployment does not exist', async () => {
     mocks.findOne.mockResolvedValue(null);
 
     await expect(
@@ -86,7 +86,7 @@ describe('DeploymentsController', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('debe listar los deployments de un proyecto', async () => {
+  it('lists the deployments of a project', async () => {
     const deployments = [
       { id: 'deployment-1', status: 'RUNNING' },
       { id: 'deployment-2', status: 'FAILED' },
@@ -103,7 +103,7 @@ describe('DeploymentsController', () => {
     );
   });
 
-  it('debe reintentar un deployment para el usuario autenticado', async () => {
+  it('retries a deployment for the authenticated user', async () => {
     const result = {
       deploymentId: 'deployment-1',
       jobId: 'job-2',

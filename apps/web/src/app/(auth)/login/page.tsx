@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ACCESS_TOKEN_KEY, apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
+import { setToken } from "@/lib/auth";
 
 interface LoginResponse {
   access_token: string;
@@ -27,14 +28,11 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      // Temporal: en el siguiente paso elegiremos cómo gestionar
-      // el token de forma más segura.
-      sessionStorage.setItem(ACCESS_TOKEN_KEY, result.access_token);
-
-      router.push("/");
+      setToken(result.access_token);
+      router.replace("/");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo iniciar sesión",
+        err instanceof Error ? err.message : "Could not sign in",
       );
     } finally {
       setLoading(false);
@@ -103,6 +101,13 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-slate-400">
+          No account yet?{" "}
+          <Link href="/register" className="text-cyan-300 hover:underline">
+            Create one
+          </Link>
+        </p>
       </div>
     </main>
   );

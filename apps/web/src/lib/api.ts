@@ -1,6 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { clearToken, getToken } from "./auth";
 
-export const ACCESS_TOKEN_KEY = "shipyard_access_token";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export class ApiError extends Error {
   constructor(
@@ -12,7 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-// NestJS devuelve { message: string | string[], error, statusCode }.
+// NestJS returns { message: string | string[], error, statusCode }.
 async function readErrorMessage(response: Response): Promise<string | null> {
   const body = (await response.json().catch(() => null)) as {
     message?: unknown;
@@ -37,13 +37,10 @@ export async function apiRequest<T>(
   options: RequestInit = {},
 ): Promise<T> {
   if (!API_URL) {
-    throw new Error("Falta configurar NEXT_PUBLIC_API_URL");
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
   }
 
-  const token =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem(ACCESS_TOKEN_KEY)
-      : null;
+  const token = typeof window !== "undefined" ? getToken() : null;
 
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
@@ -61,30 +58,30 @@ export async function apiRequest<T>(
     const serverMessage = await readErrorMessage(response);
 
     if (response.status === 401 && token) {
-      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+      clearToken();
 
       if (window.location.pathname !== "/login") {
-        // Recarga completa a propósito: no hay router fuera de los componentes
-        // y así se descarta cualquier estado de la sesión caducada.
+        // Full reload on purpose: there is no router outside components
+        // and it discards any state from the expired session.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign("/login");
       }
 
       throw new ApiError(
-        "Tu sesión ha caducado. Inicia sesión de nuevo.",
+        "Your session has expired. Please sign in again.",
         401,
       );
     }
 
     if (response.status === 404) {
       throw new ApiError(
-        serverMessage ?? "No se encontró el recurso solicitado.",
+        serverMessage ?? "The requested resource was not found.",
         404,
       );
     }
 
     throw new ApiError(
-      serverMessage ?? `Error de API: ${response.status}`,
+      serverMessage ?? `API error: ${response.status}`,
       response.status,
     );
   }

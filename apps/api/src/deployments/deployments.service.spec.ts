@@ -16,6 +16,10 @@ const mocks = vi.hoisted(() => ({
     updateMany: vi.fn(),
     findMany: vi.fn(),
   },
+  deploymentLog: {
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+  },
   queueAdd: vi.fn(),
 }));
 
@@ -31,6 +35,7 @@ describe('DeploymentsService', () => {
   const prismaMock = {
     project: mocks.project,
     deployment: mocks.deployment,
+    deploymentLog: mocks.deploymentLog,
   };
 
   const queueMock = {
@@ -44,7 +49,7 @@ describe('DeploymentsService', () => {
   });
 
   describe('enqueue', () => {
-    it('debe crear un deployment y añadirlo a la cola', async () => {
+    it('creates a deployment and queues it', async () => {
       mocks.project.findFirst.mockResolvedValue({
         id: 'project-1',
         repositoryUrl: 'https://github.com/example/shipyard',
@@ -61,7 +66,7 @@ describe('DeploymentsService', () => {
       );
 
       expect(result).toEqual({
-        message: 'Deployment añadido a la cola',
+        message: 'Deployment queued',
         deploymentId: 'deployment-1',
         jobId: 'job-1',
         status: 'QUEUED',
@@ -95,7 +100,7 @@ describe('DeploymentsService', () => {
       );
     });
 
-    it('debe rechazar un proyecto que no pertenece al usuario', async () => {
+    it('rejects a project that does not belong to the user', async () => {
       mocks.project.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -107,8 +112,8 @@ describe('DeploymentsService', () => {
     });
 
     
-    it('debe marcar como FAILED el deployment si Redis falla', async () => {
-      const redisError = new Error('Redis no disponible');
+    it('marks the deployment as FAILED if Redis fails', async () => {
+      const redisError = new Error('Redis unavailable');
 
       mocks.project.findFirst.mockResolvedValue({
         id: 'project-1',
@@ -133,9 +138,9 @@ describe('DeploymentsService', () => {
       });
     });
 
-    it('debe propagar el error de Redis aunque también falle la actualización a FAILED', async () => {
-      const redisError = new Error('Redis no disponible');
-      const databaseError = new Error('PostgreSQL no disponible');
+    it('propagates the Redis error even if the FAILED update also fails', async () => {
+      const redisError = new Error('Redis unavailable');
+      const databaseError = new Error('PostgreSQL unavailable');
 
       const consoleError = vi
         .spyOn(console, 'error')
@@ -165,7 +170,7 @@ describe('DeploymentsService', () => {
         });
 
         expect(consoleError).toHaveBeenCalledWith(
-          expect.stringContaining('No se pudo marcar como FAILED el deployment'),
+          expect.stringContaining('Could not mark deployment'),
           databaseError,
         );
       } finally {
@@ -176,7 +181,7 @@ describe('DeploymentsService', () => {
   });
 
   describe('retry', () => {
-    it('debe reintentar un deployment fallido', async () => {
+    it('retries a failed deployment', async () => {
       mocks.deployment.findFirst.mockResolvedValue({
         id: 'deployment-1',
         projectId: 'project-1',
@@ -191,7 +196,7 @@ describe('DeploymentsService', () => {
       const result = await service.retry('deployment-1', 'user-1');
 
       expect(result).toEqual({
-        message: 'Deployment añadido de nuevo a la cola',
+        message: 'Deployment queued again',
         deploymentId: 'deployment-1',
         jobId: 'job-2',
         status: 'QUEUED',
@@ -219,7 +224,7 @@ describe('DeploymentsService', () => {
       );
     });
 
-    it('debe rechazar un deployment inexistente o ajeno al usuario', async () => {
+    it('rejects a deployment that does not exist or belongs to another user', async () => {
       mocks.deployment.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -230,7 +235,7 @@ describe('DeploymentsService', () => {
       expect(mocks.queueAdd).not.toHaveBeenCalled();
     });
 
-    it('debe rechazar el reintento si el deployment no ha fallado', async () => {
+    it('rejects the retry if the deployment has not failed', async () => {
       mocks.deployment.findFirst.mockResolvedValue({
         id: 'deployment-1',
         projectId: 'project-1',
@@ -248,7 +253,7 @@ describe('DeploymentsService', () => {
       expect(mocks.queueAdd).not.toHaveBeenCalled();
     });
     
-    it('rechaza un segundo reintento simultáneo sin encolar otro job', async () => {
+    it('rejects a second concurrent retry without queueing another job', async () => {
       mocks.deployment.findFirst.mockResolvedValue({
         id: 'deployment-1',
         projectId: 'project-1',
@@ -257,7 +262,7 @@ describe('DeploymentsService', () => {
           repositoryUrl: 'https://github.com/example/shipyard',
         },
       });
-      // Otro reintento ya lo ha pasado a QUEUED entre la lectura y el cambio.
+      // Another retry already moved it to QUEUED between the read and the update.
       mocks.deployment.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(
@@ -267,8 +272,8 @@ describe('DeploymentsService', () => {
       expect(mocks.queueAdd).not.toHaveBeenCalled();
     });
 
-    it('debe marcar como FAILED el deployment si Redis falla al reintentar', async () => {
-      const redisError = new Error('Redis no disponible');
+    it('marks the deployment as FAILED if Redis fails while retrying', async () => {
+      const redisError = new Error('Redis unavailable');
 
       mocks.deployment.findFirst.mockResolvedValue({
         id: 'deployment-1',
@@ -297,9 +302,9 @@ describe('DeploymentsService', () => {
       });
     });
 
-    it('debe propagar el error de Redis aunque falle la actualización a FAILED durante el reintento', async () => {
-      const redisError = new Error('Redis no disponible');
-      const databaseError = new Error('PostgreSQL no disponible');
+    it('propagates the Redis error even if the FAILED update fails while retrying', async () => {
+      const redisError = new Error('Redis unavailable');
+      const databaseError = new Error('PostgreSQL unavailable');
 
       const consoleError = vi
         .spyOn(console, 'error')
@@ -334,7 +339,7 @@ describe('DeploymentsService', () => {
         });
 
         expect(consoleError).toHaveBeenCalledWith(
-          expect.stringContaining('No se pudo marcar como FAILED el deployment'),
+          expect.stringContaining('Could not mark deployment'),
           databaseError,
         );
       } finally {
@@ -344,7 +349,7 @@ describe('DeploymentsService', () => {
   });
 
   describe('findOne', () => {
-    it('debe buscar el deployment dentro del ámbito del usuario', async () => {
+    it('scopes the deployment lookup to the user', async () => {
       const deployment = { id: 'deployment-1', status: 'RUNNING' };
       mocks.deployment.findFirst.mockResolvedValue(deployment);
 
@@ -371,7 +376,7 @@ describe('DeploymentsService', () => {
   });
 
   describe('findByProject', () => {
-    it('debe listar los deployments del proyecto', async () => {
+    it('lists the project deployments', async () => {
       const deployments = [{ id: 'deployment-1', status: 'RUNNING' }];
 
       mocks.project.findFirst.mockResolvedValue({ id: 'project-1' });
@@ -387,7 +392,7 @@ describe('DeploymentsService', () => {
       });
     });
 
-    it('debe rechazar un proyecto que no pertenece al usuario', async () => {
+    it('rejects a project that does not belong to the user', async () => {
       mocks.project.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -395,6 +400,64 @@ describe('DeploymentsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(mocks.deployment.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findLogs', () => {
+    const deploymentId = '3f8a2b1c-4d5e-4f60-8a7b-9c0d1e2f3a4b';
+    const cursorId = '5a8a2b1c-4d5e-4f60-8a7b-9c0d1e2f3a4b';
+
+    beforeEach(() => {
+      mocks.deployment.findFirst.mockResolvedValue({ id: deploymentId });
+      mocks.deploymentLog.findMany.mockResolvedValue([]);
+    });
+
+    it('returns all logs in a stable order without a cursor', async () => {
+      await service.findLogs(deploymentId, 'user-1');
+
+      expect(mocks.deployment.findFirst).toHaveBeenCalledWith({
+        where: { id: deploymentId, project: { userId: 'user-1' } },
+        select: { id: true },
+      });
+      expect(mocks.deploymentLog.findMany).toHaveBeenCalledWith({
+        where: { deploymentId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 1000,
+      });
+    });
+
+    it('returns only the logs after the cursor', async () => {
+      mocks.deploymentLog.findFirst.mockResolvedValue({ id: cursorId });
+
+      await service.findLogs(deploymentId, 'user-1', cursorId);
+
+      expect(mocks.deploymentLog.findFirst).toHaveBeenCalledWith({
+        where: { id: cursorId, deploymentId },
+        select: { id: true },
+      });
+      expect(mocks.deploymentLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: { id: cursorId }, skip: 1 }),
+      );
+    });
+
+    it('rejects a cursor from another deployment', async () => {
+      mocks.deploymentLog.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findLogs(deploymentId, 'user-1', cursorId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mocks.deploymentLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 if the deployment belongs to another user', async () => {
+      mocks.deployment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findLogs(deploymentId, 'user-2'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(mocks.deploymentLog.findMany).not.toHaveBeenCalled();
     });
   });
 });
