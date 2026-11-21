@@ -26,7 +26,7 @@ Worker error handling (`apps/worker/src/errors.ts`): throw `PermanentDeploymentE
 
 Builds: the worker `POST`s `/builds` (202, async) and polls `GET /builds/:id?after=<offset>` every 2 s, storing each new output chunk as a `DeploymentLog`. The build-runner runs each command in its own ephemeral container (install → build), polling the container state instead of `/wait` (the proxy cuts requests at 10 min), and always removes it. A failure in the **build** step is permanent; **install** failures, Docker errors, 404 (runner restarted, its state is in memory) and 429 (busy) are transient.
 
-**Current state:** builds work end to end. `RUNNING` currently means "build succeeded": nothing is deployed yet (phase 5 adds the real deploy). The web app has no Deploy button or logs view yet (phase 4). See the roadmap in `C:\Users\ramir\.claude\plans\vamos-a-planificar-la-cryptic-owl.md` if present.
+**Current state:** builds work end to end. `RUNNING` currently means "build succeeded": nothing is deployed yet (phase 5 adds the real deploy). The web app covers the whole flow: register/login, projects, Deploy, Retry and live deployment logs. See the roadmap in `C:\Users\ramir\.claude\plans\vamos-a-planificar-la-cryptic-owl.md` if present.
 
 ## Repository map
 
@@ -36,7 +36,7 @@ Builds: the worker `POST`s `/builds` (202, async) and polls `GET /builds/:id?aft
 | `apps/worker` | `@shipyard/worker` | BullMQ consumer. `deployment.processor.ts` orchestrates; `git.ts` clones; `project-detector.ts` detects Node + package manager; `build.ts`/`build-strategy.ts` build commands; `build-runner-client.ts` calls the runner. |
 | `apps/build-runner` | `@shipyard/build-runner` | `node:http` server: `GET /health`, `POST /builds`, `GET /builds/:id`. `build-request.ts` validates input, `build-manager.ts` keeps build state in memory, `step-runner.ts` runs one step in a container, `container-spec.ts` is the **only** place that defines a build container's config, `docker-client.ts` is a dependency-free Docker API client. |
 | `apps/build-runner/build-image` | — | Image `shipyard-build-node:22` (user `node`, UID 1000; HOME and package caches inside the workspace). Build it with `pnpm build:image`. |
-| `apps/web` | `@shipyard/web` | Next.js 16 + React 19 + Tailwind 4 client pages: login, projects list/new/detail. API calls through `src/lib/api.ts`. |
+| `apps/web` | `@shipyard/web` | Next.js 16 + React 19 + Tailwind 4, all client pages. `app/(auth)/` login and register (no shell); `app/(app)/` everything behind a session, sharing `(app)/layout.tsx` (sidebar, sign out, redirect to `/login` without a token): projects list/new/detail and `deployments/[id]` (live logs via `?after=` cursor). `lib/api.ts` (fetch + `ApiError`), `lib/auth.ts` (token), `lib/types.ts` (API shapes). |
 | `packages/database` | `@shipyard/database` | Prisma 7 schema + migrations; exports the generated client and `createPrismaAdapter()`. |
 | `packages/shared` | `@shipyard/shared` | Code shared by api, worker and build-runner, with no runtime dependencies: repository URL validation, workspace paths, build command allowlist, queue name and `DeploymentJob` contract. |
 
@@ -48,7 +48,8 @@ cp .env.example .env            # also apps/api/.env, apps/worker/.env, apps/web
 pnpm build:image                # image used by the build containers (needed once)
 docker compose up --build       # postgres, redis, migrate, api, worker, build-runner, docker-proxy
 
-pnpm dev:api | dev:worker | dev:web
+pnpm dev:web                    # the web is NOT in compose: http://localhost:3000 (needs apps/web/.env.local)
+pnpm dev:api | dev:worker
 pnpm --filter @shipyard/database generate       # regenerate Prisma client after schema changes
 pnpm --filter @shipyard/database migrate:dev    # create/apply a migration (needs DATABASE_URL)
 
@@ -66,7 +67,8 @@ pnpm --filter @shipyard/worker typecheck
 ## Conventions
 
 - ESM everywhere (`"type": "module"`): relative imports use the `.js` extension, even in `.ts` files.
-- Code identifiers and commits are in English (Conventional Commits: `feat(api): ...`). **User-facing and log messages are in Spanish.** Keep that split.
+- **Everything is in English**: code, comments, test names, user-facing text, API error messages, deployment logs and commits (Conventional Commits: `feat(api): ...`).
+- Some status codes depend on exact error messages (e.g. the build-runner maps `'Deployment workspace not found'` to 404 in `main.ts`): when rewording an error, search for other uses of the string.
 - Tests live next to the code: `*.spec.ts` (unit), `*.e2e-spec.ts` (API e2e). Use Vitest 5.
 - CI (`.github/workflows/ci.yml`) runs `typecheck`, `lint`, `test`, `test:e2e` and builds every Docker image; keep them green.
 - Tool versions are aligned across packages: TypeScript `5.9.3`, `@types/node` `^22` (forced by an override in `pnpm-workspace.yaml` to match the `node:22` images).
@@ -88,6 +90,8 @@ pnpm --filter @shipyard/worker typecheck
 ## Gotchas
 
 - `apps/web` uses Next.js 16, which has breaking changes. Read `apps/web/AGENTS.md` and the docs in `node_modules/next/dist/docs/` before changing web code.
+- `cacheComponents` is on: every route gets a static shell validated in dev. Anything reading the URL (`usePathname`, `useParams`, `useSearchParams`) must sit inside `<Suspense>`, even in client components (the `(app)` layout wraps `children` and the sidebar nav for this). A segment that isn't rendered on the server can't be validated, which is why the `(app)` layout renders the page on the server as if signed in (pages only fetch in `useEffect`). Watch the `next dev` output for "instant navigation" errors after adding pages.
+- `next dev`/`next build` may stop once to print a Next.js security upgrade notice addressed to agents; rerunning continues. Don't run its suggested `next upgrade` command without the user's approval.
 - Internal packages are consumed from their `dist/`: run `pnpm --filter @shipyard/database --filter @shipyard/shared build` before building, testing or running the apps (the Prisma client is generated into `packages/database/src/generated/prisma`, git-ignored).
 - A new internal dependency must also be copied in the app's `Dockerfile` (both the `package.json` and the source).
 - Windows: run `docker compose build/up` from `D:\shipyard` (uppercase drive). From `d:\shipyard` Compose's bake fails with "additional privileges requested: --allow=fs.read=..." because the drive-letter case differs between context and Dockerfile paths.
