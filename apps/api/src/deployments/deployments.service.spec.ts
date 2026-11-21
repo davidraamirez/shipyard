@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 const mocks = vi.hoisted(() => ({
   project: {
@@ -9,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     create: vi.fn(),
     findFirst: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     findMany: vi.fn(),
   },
   queueAdd: vi.fn(),
@@ -34,6 +39,7 @@ describe('DeploymentsService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.deployment.updateMany.mockResolvedValue({ count: 1 });
     service = new DeploymentsService(queueMock as any, prismaMock as any);
   });
 
@@ -191,8 +197,8 @@ describe('DeploymentsService', () => {
         status: 'QUEUED',
       });
 
-      expect(mocks.deployment.update).toHaveBeenCalledWith({
-        where: { id: 'deployment-1' },
+      expect(mocks.deployment.updateMany).toHaveBeenCalledWith({
+        where: { id: 'deployment-1', status: 'FAILED' },
         data: { status: 'QUEUED' },
       });
 
@@ -242,6 +248,25 @@ describe('DeploymentsService', () => {
       expect(mocks.queueAdd).not.toHaveBeenCalled();
     });
     
+    it('rechaza un segundo reintento simultáneo sin encolar otro job', async () => {
+      mocks.deployment.findFirst.mockResolvedValue({
+        id: 'deployment-1',
+        projectId: 'project-1',
+        status: 'FAILED',
+        project: {
+          repositoryUrl: 'https://github.com/example/shipyard',
+        },
+      });
+      // Otro reintento ya lo ha pasado a QUEUED entre la lectura y el cambio.
+      mocks.deployment.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.retry('deployment-1', 'user-1'),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(mocks.queueAdd).not.toHaveBeenCalled();
+    });
+
     it('debe marcar como FAILED el deployment si Redis falla al reintentar', async () => {
       const redisError = new Error('Redis no disponible');
 
@@ -261,12 +286,12 @@ describe('DeploymentsService', () => {
         service.retry('deployment-1', 'user-1'),
       ).rejects.toBe(redisError);
 
-      expect(mocks.deployment.update).toHaveBeenNthCalledWith(1, {
-        where: { id: 'deployment-1' },
+      expect(mocks.deployment.updateMany).toHaveBeenCalledWith({
+        where: { id: 'deployment-1', status: 'FAILED' },
         data: { status: 'QUEUED' },
       });
 
-      expect(mocks.deployment.update).toHaveBeenNthCalledWith(2, {
+      expect(mocks.deployment.update).toHaveBeenCalledWith({
         where: { id: 'deployment-1' },
         data: { status: 'FAILED' },
       });
@@ -290,9 +315,7 @@ describe('DeploymentsService', () => {
           },
         });
 
-        mocks.deployment.update
-          .mockResolvedValueOnce({})
-          .mockRejectedValueOnce(databaseError);
+        mocks.deployment.update.mockRejectedValueOnce(databaseError);
 
         mocks.queueAdd.mockRejectedValue(redisError);
 
@@ -300,12 +323,12 @@ describe('DeploymentsService', () => {
           service.retry('deployment-1', 'user-1'),
         ).rejects.toBe(redisError);
 
-        expect(mocks.deployment.update).toHaveBeenNthCalledWith(1, {
-          where: { id: 'deployment-1' },
+        expect(mocks.deployment.updateMany).toHaveBeenCalledWith({
+          where: { id: 'deployment-1', status: 'FAILED' },
           data: { status: 'QUEUED' },
         });
 
-        expect(mocks.deployment.update).toHaveBeenNthCalledWith(2, {
+        expect(mocks.deployment.update).toHaveBeenCalledWith({
           where: { id: 'deployment-1' },
           data: { status: 'FAILED' },
         });

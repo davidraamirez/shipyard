@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import {
@@ -83,14 +88,21 @@ export class DeploymentsService {
       );
     }
 
-    await this.prisma.deployment.update({
+    // Comprobación y cambio en una sola operación: si llegan dos reintentos a
+    // la vez, solo uno pasa de FAILED a QUEUED y encola el job.
+    const { count } = await this.prisma.deployment.updateMany({
       where: {
         id: deployment.id,
+        status: 'FAILED',
       },
       data: {
         status: 'QUEUED',
       },
     });
+
+    if (count === 0) {
+      throw new ConflictException('El deployment ya se está reintentando');
+    }
 
     const job = await this.queueDeployment(
       deployment.id,
