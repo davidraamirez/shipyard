@@ -10,7 +10,7 @@ export function getBuildCommands(
 ): BuildCommand[] {
   if (projectInfo.type !== 'NODE') {
     throw new Error(
-      `No existe una estrategia de build para ${projectInfo.type}`,
+      `No build strategy for ${projectInfo.type}`,
     );
   }
 
@@ -18,7 +18,7 @@ export function getBuildCommands(
 
   if (!manager) {
     throw new Error(
-      'No se ha detectado un gestor de paquetes compatible',
+      'No supported package manager detected',
     );
   }
 

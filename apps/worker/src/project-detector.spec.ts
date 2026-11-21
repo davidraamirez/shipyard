@@ -20,7 +20,7 @@ describe('detectProject', () => {
     return workspace;
   }
 
-  it('detecta un proyecto Node con pnpm y script build', async () => {
+  it('detects a Node project with pnpm and a build script', async () => {
     const dir = await createWorkspace();
 
     await writeFile(
@@ -38,7 +38,7 @@ describe('detectProject', () => {
     });
   });
 
-  it('detecta npm por defecto', async () => {
+  it('defaults to npm', async () => {
     const dir = await createWorkspace();
 
     await writeFile(
@@ -65,7 +65,7 @@ describe('detectProject', () => {
     });
   });
 
-  it('devuelve UNKNOWN si no existe package.json', async () => {
+  it('returns UNKNOWN without package.json', async () => {
     const dir = await createWorkspace();
 
     await expect(detectProject(dir)).resolves.toEqual({
@@ -75,13 +75,13 @@ describe('detectProject', () => {
     });
   });
 
-  it('falla si package.json contiene JSON inválido', async () => {
+  it('fails if package.json contains invalid JSON', async () => {
     const dir = await createWorkspace();
 
-    await writeFile(join(dir, 'package.json'), '{ JSON inválido');
+    await writeFile(join(dir, 'package.json'), '{ invalid JSON');
 
     await expect(detectProject(dir)).rejects.toThrow(
-      'El package.json del repositorio no es válido',
+      'The repository package.json is invalid',
     );
   });
 });

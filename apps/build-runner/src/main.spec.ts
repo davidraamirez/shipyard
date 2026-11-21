@@ -59,7 +59,7 @@ describe('Build runner HTTP', () => {
 
     const address = server.address();
     if (!address || typeof address === 'string') {
-      throw new Error('No se pudo obtener el puerto del servidor');
+      throw new Error('Could not get the server port');
     }
     baseUrl = `http://127.0.0.1:${address.port}`;
   }
@@ -71,7 +71,7 @@ describe('Build runner HTTP', () => {
       body: JSON.stringify(body),
     });
 
-  it('responde correctamente en /health sin autenticación', async () => {
+  it('answers /health without authentication', async () => {
     await startServer();
 
     const response = await fetch(`${baseUrl}/health`);
@@ -80,14 +80,14 @@ describe('Build runner HTTP', () => {
     await expect(response.json()).resolves.toEqual({ status: 'ok' });
   });
 
-  it('rechaza solicitudes sin token', async () => {
+  it('rejects requests without a token', async () => {
     await startServer();
 
     expect((await postBuild(validBody, {})).status).toBe(401);
     expect((await fetch(`${baseUrl}/builds/${deploymentId}`)).status).toBe(401);
   });
 
-  it('rechaza un token incorrecto de la misma longitud', async () => {
+  it('rejects a wrong token of the same length', async () => {
     await startServer();
 
     const response = await postBuild(validBody, { authorization: 'Bearer test-tokeX' });
@@ -95,14 +95,14 @@ describe('Build runner HTTP', () => {
     expect(response.status).toBe(401);
   });
 
-  it('rechaza builds si no se ha configurado el token', async () => {
-    // Equivale a BUILD_RUNNER_TOKEN vacío en el entorno.
+  it('rejects builds when no token is configured', async () => {
+    // Same as an empty BUILD_RUNNER_TOKEN in the environment.
     await startServer('');
 
     expect((await postBuild(validBody)).status).toBe(503);
   });
 
-  it('acepta un build con 202 y permite consultar su estado', async () => {
+  it('accepts a build with 202 and exposes its status', async () => {
     await startServer();
 
     const accepted = await postBuild(validBody);
@@ -125,7 +125,7 @@ describe('Build runner HTTP', () => {
     );
   });
 
-  it('valida la solicitud con la lista blanca de comandos', async () => {
+  it('validates the request against the command allowlist', async () => {
     await startServer();
 
     const response = await postBuild({
@@ -137,7 +137,7 @@ describe('Build runner HTTP', () => {
     expect(runner.run).not.toHaveBeenCalled();
   });
 
-  it('responde 404 si no existe el workspace del deployment', async () => {
+  it('returns 404 if the deployment workspace does not exist', async () => {
     await startServer();
 
     const response = await postBuild({
@@ -148,7 +148,7 @@ describe('Build runner HTTP', () => {
     expect(response.status).toBe(404);
   });
 
-  it('responde 429 si se alcanza el máximo de builds simultáneos', async () => {
+  it('returns 429 when the concurrency limit is reached', async () => {
     await startServer(token, 1);
     runner.run = vi.fn(() => new Promise<number>(() => {}));
 
@@ -160,11 +160,11 @@ describe('Build runner HTTP', () => {
     expect((await postBuild({ ...validBody, deploymentId: otherId })).status).toBe(429);
   });
 
-  it('responde 404 para builds desconocidos y 400 para ids no válidos', async () => {
+  it('returns 404 for unknown builds and 400 for invalid ids', async () => {
     await startServer();
 
     const unknown = await fetch(`${baseUrl}/builds/${deploymentId}`, { headers: auth });
-    const invalid = await fetch(`${baseUrl}/builds/no-es-un-uuid`, { headers: auth });
+    const invalid = await fetch(`${baseUrl}/builds/not-a-uuid`, { headers: auth });
     const badOffset = await fetch(`${baseUrl}/builds/${deploymentId}?after=-1`, {
       headers: auth,
     });
@@ -174,21 +174,21 @@ describe('Build runner HTTP', () => {
     expect(badOffset.status).toBe(400);
   });
 
-  it('responde 413 si el cuerpo es demasiado grande', async () => {
+  it('returns 413 if the body is too large', async () => {
     await startServer();
 
     const response = await postBuild({ ...validBody, padding: 'x'.repeat(20_000) }).catch(
       () => null,
     );
 
-    // El servidor corta la conexión al superar el límite; según el momento
-    // el cliente ve el 413 o un error de red.
+    // The server drops the connection above the limit; depending on timing
+    // the client sees the 413 or a network error.
     if (response) {
       expect(response.status).toBe(413);
     }
   });
 
-  it('responde 404 en rutas desconocidas', async () => {
+  it('returns 404 for unknown routes', async () => {
     await startServer();
 
     expect((await fetch(`${baseUrl}/unknown`)).status).toBe(404);

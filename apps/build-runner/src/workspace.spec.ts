@@ -27,21 +27,21 @@ describe('requireWorkspace', () => {
     return workspacesDirectory;
   }
 
-  it('rechaza un deploymentId inválido', async () => {
+  it('rejects an invalid deploymentId', async () => {
     await expect(
       requireWorkspace('../outside', temporaryDirectory),
-    ).rejects.toThrow('deploymentId no válido');
+    ).rejects.toThrow('Invalid deploymentId');
   });
 
-  it('rechaza un workspace inexistente', async () => {
+  it('rejects a missing workspace', async () => {
     const workspacesDirectory = await createWorkspacesDirectory();
 
     await expect(
       requireWorkspace(DEPLOYMENT_ID, workspacesDirectory),
-    ).rejects.toThrow('No se encuentra el workspace del deployment');
+    ).rejects.toThrow('Deployment workspace not found');
   });
 
-  it('acepta un workspace que es un directorio', async () => {
+  it('accepts a workspace that is a directory', async () => {
     const workspacesDirectory = await createWorkspacesDirectory();
     const workspace = path.join(workspacesDirectory, DEPLOYMENT_ID);
 
@@ -52,7 +52,7 @@ describe('requireWorkspace', () => {
     ).resolves.toBe(workspace);
   });
 
-  it('rechaza un workspace que es un archivo', async () => {
+  it('rejects a workspace that is a file', async () => {
     const workspacesDirectory = await createWorkspacesDirectory();
     const workspace = path.join(workspacesDirectory, DEPLOYMENT_ID);
 
@@ -60,10 +60,10 @@ describe('requireWorkspace', () => {
 
     await expect(
       requireWorkspace(DEPLOYMENT_ID, workspacesDirectory),
-    ).rejects.toThrow('El workspace no es un directorio válido');
+    ).rejects.toThrow('The workspace is not a valid directory');
   });
 
-  it('rechaza un workspace que es un enlace simbólico', async () => {
+  it('rejects a workspace that is a symlink', async () => {
     const workspacesDirectory = await createWorkspacesDirectory();
     const target = path.join(temporaryDirectory!, 'target');
 
@@ -85,6 +85,6 @@ describe('requireWorkspace', () => {
 
     await expect(
       requireWorkspace(DEPLOYMENT_ID, workspacesDirectory),
-    ).rejects.toThrow('El workspace no es un directorio válido');
+    ).rejects.toThrow('The workspace is not a valid directory');
   });
 });

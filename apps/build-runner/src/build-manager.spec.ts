@@ -12,7 +12,7 @@ const build: BuildCommand = { command: 'npm', args: [...BUILD_ARGS.npm] };
 
 type Step = { output?: string; exitCode?: number; error?: Error };
 
-// Runner falso: cada llamada consume el siguiente paso programado.
+// Fake runner: each call consumes the next scripted step.
 function fakeRunner(steps: Step[]) {
   const pending: Array<() => void> = [];
   let blocked = false;
@@ -55,7 +55,7 @@ async function waitForFinish(manager: BuildManager, id: string) {
 }
 
 describe('BuildManager', () => {
-  it('ejecuta los pasos en orden y termina en succeeded', async () => {
+  it('runs the steps in order and ends as succeeded', async () => {
     const manager = createManager(
       fakeRunner([{ output: 'added 10 packages\n' }, { output: 'built\n' }]),
     );
@@ -71,7 +71,7 @@ describe('BuildManager', () => {
     expect(result.error).toBeNull();
   });
 
-  it('se detiene en el primer paso que falla e indica cuál fue', async () => {
+  it('stops at the first failing step and reports which one', async () => {
     const runner = fakeRunner([{ exitCode: 0 }, { exitCode: 2, output: 'error TS1005\n' }]);
     const spy = vi.spyOn(runner, 'run');
     const manager = createManager(runner);
@@ -81,13 +81,13 @@ describe('BuildManager', () => {
 
     expect(result.status).toBe('failed');
     expect(result.failedStep).toBe('build');
-    expect(result.error).toBe('"npm run build --ignore-scripts" terminó con código 2');
+    expect(result.error).toBe('"npm run build --ignore-scripts" exited with code 2');
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it('atribuye un timeout al paso que lo superó', async () => {
+  it('attributes a timeout to the step that exceeded it', async () => {
     const manager = createManager(
-      fakeRunner([{ error: new StepTimeoutError('superó el tiempo límite') }]),
+      fakeRunner([{ error: new StepTimeoutError('exceeded the time limit') }]),
     );
 
     manager.start({ deploymentId: id1, commands: [install] });
@@ -96,9 +96,9 @@ describe('BuildManager', () => {
     expect(result.failedStep).toBe('install');
   });
 
-  it('marca los errores de Docker como fallo de infraestructura', async () => {
+  it('marks Docker errors as infrastructure failures', async () => {
     const manager = createManager(
-      fakeRunner([{ error: new Error('No se pudo conectar con Docker') }]),
+      fakeRunner([{ error: new Error('Could not connect to Docker') }]),
     );
 
     manager.start({ deploymentId: id1, commands: [install] });
@@ -106,10 +106,10 @@ describe('BuildManager', () => {
 
     expect(result.status).toBe('failed');
     expect(result.failedStep).toBeNull();
-    expect(result.error).toBe('No se pudo conectar con Docker');
+    expect(result.error).toBe('Could not connect to Docker');
   });
 
-  it('no lanza un segundo build si se repite el POST mientras se ejecuta', async () => {
+  it('does not start a second build if the POST is repeated while running', async () => {
     const runner = fakeRunner([{}]);
     runner.block();
     const spy = vi.spyOn(runner, 'run');
@@ -123,7 +123,7 @@ describe('BuildManager', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('permite volver a lanzar un build que ya terminó', async () => {
+  it('allows restarting a finished build', async () => {
     const manager = createManager(fakeRunner([{ exitCode: 1 }, { exitCode: 0 }]));
 
     manager.start({ deploymentId: id1, commands: [install] });
@@ -133,7 +133,7 @@ describe('BuildManager', () => {
     expect((await waitForFinish(manager, id1)).status).toBe('succeeded');
   });
 
-  it('rechaza builds por encima del máximo simultáneo', () => {
+  it('rejects builds above the concurrency limit', () => {
     const runner = fakeRunner([]);
     runner.block();
     const manager = createManager(runner, { maxConcurrentBuilds: 2 });
@@ -147,31 +147,31 @@ describe('BuildManager', () => {
     runner.release();
   });
 
-  it('devuelve solo la salida nueva a partir del offset', async () => {
-    const manager = createManager(fakeRunner([{ output: 'linea 1\nlinea 2\n' }]));
+  it('returns only the new output after the offset', async () => {
+    const manager = createManager(fakeRunner([{ output: 'line 1\nline 2\n' }]));
 
     manager.start({ deploymentId: id1, commands: [install] });
     const full = await waitForFinish(manager, id1);
     const header = '$ npm ci --ignore-scripts\n';
 
-    expect(manager.get(id1, header.length)?.output).toBe('linea 1\nlinea 2\n');
+    expect(manager.get(id1, header.length)?.output).toBe('line 1\nline 2\n');
     expect(manager.get(id1, full.nextOffset)?.output).toBe('');
     expect(full.nextOffset).toBe(full.output.length);
   });
 
-  it('limpia códigos ANSI y retornos de carro de la salida', async () => {
+  it('strips ANSI codes and carriage returns from the output', async () => {
     const manager = createManager(
-      fakeRunner([{ output: '\x1b[32mok\x1b[0m\r\nprogreso 50%\rprogreso 100%\n' }]),
+      fakeRunner([{ output: '\x1b[32mok\x1b[0m\r\nprogress 50%\rprogress 100%\n' }]),
     );
 
     manager.start({ deploymentId: id1, commands: [install] });
     const result = await waitForFinish(manager, id1);
 
-    expect(result.output).toContain('ok\nprogreso 50%\nprogreso 100%\n');
+    expect(result.output).toContain('ok\nprogress 50%\nprogress 100%\n');
     expect(result.output).not.toContain('\x1b');
   });
 
-  it('trunca la salida al superar el máximo', async () => {
+  it('truncates the output above the limit', async () => {
     const manager = createManager(fakeRunner([{ output: 'x'.repeat(5_000) }]), {
       maxOutputChars: 100,
     });
@@ -180,11 +180,11 @@ describe('BuildManager', () => {
     const result = await waitForFinish(manager, id1);
 
     expect(result.truncated).toBe(true);
-    expect(result.output.endsWith('[salida truncada]\n')).toBe(true);
+    expect(result.output.endsWith('[output truncated]\n')).toBe(true);
     expect(result.output.length).toBeLessThan(150);
   });
 
-  it('devuelve null para builds desconocidos', () => {
+  it('returns null for unknown builds', () => {
     expect(createManager(fakeRunner([])).get(id1)).toBeNull();
   });
 });

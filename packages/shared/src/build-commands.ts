@@ -7,16 +7,16 @@ export type BuildCommand = {
 
 export const PACKAGE_MANAGERS: readonly PackageManager[] = ['pnpm', 'npm', 'yarn'];
 
-// Los únicos comandos que se ejecutan en un build. El worker los genera a
-// partir de aquí y el build-runner rechaza cualquier otra combinación.
-// --ignore-scripts evita que el repositorio ejecute hooks (postinstall, etc.).
+// The only commands a build runs. The worker generates them from
+// here and the build-runner rejects any other combination.
+// --ignore-scripts keeps the repository from running hooks (postinstall, etc.).
 export const INSTALL_ARGS: Readonly<Record<PackageManager, readonly string[]>> = {
   pnpm: ['install', '--frozen-lockfile', '--ignore-scripts'],
   npm: ['ci', '--ignore-scripts'],
   yarn: ['install', '--immutable', '--ignore-scripts'],
 };
 
-// yarn no admite --ignore-scripts en "run".
+// yarn does not support --ignore-scripts on "run".
 export const BUILD_ARGS: Readonly<Record<PackageManager, readonly string[]>> = {
   pnpm: ['run', 'build', '--ignore-scripts'],
   npm: ['run', 'build', '--ignore-scripts'],

@@ -51,7 +51,7 @@ describe('runRemoteBuild', () => {
     vi.unstubAllEnvs();
   });
 
-  it('sigue el build hasta el final y emite la salida en orden', async () => {
+  it('follows the build to the end and emits output in order', async () => {
     const { promise, onOutput, fetchMock } = run([
       reply(202, snapshot({ status: 'running', output: 'a\n', nextOffset: 2 })),
       reply(200, snapshot({ status: 'running', output: 'b\n', nextOffset: 4 })),
@@ -67,7 +67,7 @@ describe('runRemoteBuild', () => {
     expect(String(fetchMock.mock.calls[2][0])).toContain('after=4');
   });
 
-  it('envía el token y el cuerpo al lanzar el build', async () => {
+  it('sends the token and body when starting the build', async () => {
     const { promise, fetchMock } = run([reply(202, snapshot({ status: 'succeeded' }))]);
 
     await promise;
@@ -79,11 +79,11 @@ describe('runRemoteBuild', () => {
     expect(JSON.parse(init.body)).toEqual(request);
   });
 
-  it('un fallo en el paso build es permanente', async () => {
+  it('a build step failure is permanent', async () => {
     const { promise } = run([
       reply(202, snapshot({
         status: 'failed',
-        error: '"npm run build" terminó con código 2',
+        error: '"npm run build" exited with code 2',
         failedStep: 'build',
       })),
     ]);
@@ -91,10 +91,10 @@ describe('runRemoteBuild', () => {
     const error = await promise.catch((caught) => caught);
 
     expect(error).toBeInstanceOf(PermanentDeploymentError);
-    expect(error.message).toBe('"npm run build" terminó con código 2');
+    expect(error.message).toBe('"npm run build" exited with code 2');
   });
 
-  it('un fallo en la instalación es transitorio', async () => {
+  it('an install failure is transient', async () => {
     const { promise } = run([
       reply(202, snapshot({ status: 'failed', error: 'ETIMEDOUT', failedStep: 'install' })),
     ]);
@@ -105,27 +105,27 @@ describe('runRemoteBuild', () => {
     expect(error.message).toBe('ETIMEDOUT');
   });
 
-  it('un fallo de Docker es transitorio', async () => {
+  it('a Docker failure is transient', async () => {
     const { promise } = run([
-      reply(202, snapshot({ status: 'failed', error: 'Docker no responde', failedStep: null })),
+      reply(202, snapshot({ status: 'failed', error: 'Docker is not responding', failedStep: null })),
     ]);
 
     await expect(promise).rejects.not.toBeInstanceOf(PermanentDeploymentError);
   });
 
-  it('una petición rechazada (400) es permanente', async () => {
-    const { promise } = run([reply(400, { error: 'Comando no válido' })]);
+  it('a rejected request (400) is permanent', async () => {
+    const { promise } = run([reply(400, { error: 'Invalid command' })]);
 
     const error = await promise.catch((caught) => caught);
 
     expect(error).toBeInstanceOf(PermanentDeploymentError);
-    expect(error.message).toBe('Comando no válido');
+    expect(error.message).toBe('Invalid command');
   });
 
   it.each([
-    [429, 'Se ha alcanzado el máximo de builds simultáneos'],
-    [503, 'Build runner no configurado'],
-  ])('HTTP %i al lanzar el build es transitorio', async (status, message) => {
+    [429, 'Maximum number of concurrent builds reached'],
+    [503, 'Build runner not configured'],
+  ])('HTTP %i when starting the build is transient', async (status, message) => {
     const { promise } = run([reply(status, { error: message })]);
 
     const error = await promise.catch((caught) => caught);
@@ -134,33 +134,33 @@ describe('runRemoteBuild', () => {
     expect(error.message).toBe(message);
   });
 
-  it('si el build-runner pierde el build (404) el error es transitorio', async () => {
+  it('a lost build (404) is transient', async () => {
     const { promise } = run([
       reply(202, snapshot({ status: 'running' })),
-      reply(404, { error: 'Build no encontrado' }),
+      reply(404, { error: 'Build not found' }),
     ]);
 
     const error = await promise.catch((caught) => caught);
 
     expect(error).not.toBeInstanceOf(PermanentDeploymentError);
-    expect(error.message).toContain('perdió el estado del build');
+    expect(error.message).toContain('lost the build state');
   });
 
-  it('rechaza respuestas con un formato inesperado', async () => {
+  it('rejects responses with an unexpected shape', async () => {
     const { promise } = run([reply(202, { status: 'ok' })]);
 
-    await expect(promise).rejects.toThrow('Respuesta no válida del build runner');
+    await expect(promise).rejects.toThrow('Invalid response from the build runner');
   });
 
-  it('falla si el build-runner no es accesible', async () => {
+  it('fails if the build-runner is unreachable', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
 
     await expect(
       runRemoteBuild(request, () => {}, { fetchImpl: fetchMock as typeof fetch }),
-    ).rejects.toThrow('No se pudo contactar con el build runner');
+    ).rejects.toThrow('Could not reach the build runner');
   });
 
-  it('se rinde al superar el tiempo máximo de espera', async () => {
+  it('gives up after the maximum wait time', async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(async () => reply(200, snapshot({ status: 'running' })));
@@ -172,14 +172,14 @@ describe('runRemoteBuild', () => {
         pollIntervalMs: 0,
         timeoutMs: 0,
       }),
-    ).rejects.toThrow('El build superó el tiempo máximo de espera');
+    ).rejects.toThrow('The build exceeded the maximum wait time');
   });
 
-  it('exige que el build-runner esté configurado', async () => {
+  it('requires the build-runner to be configured', async () => {
     vi.stubEnv('BUILD_RUNNER_TOKEN', '');
 
     await expect(runRemoteBuild(request, () => {})).rejects.toThrow(
-      'Build runner no está configurado',
+      'Build runner is not configured',
     );
   });
 });

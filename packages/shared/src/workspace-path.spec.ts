@@ -7,7 +7,7 @@ import {
 } from './workspace-path.js';
 
 describe('getWorkspacePath', () => {
-  it('construye la ruta a partir de un UUID válido', () => {
+  it('builds the path from a valid UUID', () => {
     expect(
       getWorkspacePath('123e4567-e89b-12d3-a456-426614174000'),
     ).toBe(
@@ -18,27 +18,27 @@ describe('getWorkspacePath', () => {
     );
   });
 
-  it('rechaza identificadores con traversal', () => {
-    expect(() => getWorkspacePath('../otro-directorio')).toThrow(
-      'deploymentId no válido',
+  it('rejects identifiers with traversal', () => {
+    expect(() => getWorkspacePath('../other-directory')).toThrow(
+      'Invalid deploymentId',
     );
   });
 
-  it('rechaza UUID incompletos', () => {
+  it('rejects incomplete UUIDs', () => {
     expect(() => getWorkspacePath('1234')).toThrow(
-      'deploymentId no válido',
+      'Invalid deploymentId',
     );
   });
 
-  it('rechaza UUID con caracteres no permitidos', () => {
+  it('rejects UUIDs with invalid characters', () => {
     expect(() =>
       getWorkspacePath('123e4567-e89b-12d3-a456-42661417400z'),
-    ).toThrow('deploymentId no válido');
+    ).toThrow('Invalid deploymentId');
   });
 });
 
 describe('isDeploymentId', () => {
-  it('acepta UUID y rechaza cualquier otro valor', () => {
+  it('accepts UUIDs and rejects anything else', () => {
     expect(isDeploymentId('123e4567-e89b-12d3-a456-426614174000')).toBe(true);
     expect(isDeploymentId('deployment-1')).toBe(false);
     expect(isDeploymentId(42)).toBe(false);
@@ -46,33 +46,33 @@ describe('isDeploymentId', () => {
 });
 
 describe('validateWorkspacePath', () => {
-  it('acepta un workspace dentro de la ruta permitida', () => {
+  it('accepts a workspace inside the allowed path', () => {
     expect(
       validateWorkspacePath('/app/workspaces/deployment-123'),
     ).toBe('/app/workspaces/deployment-123');
   });
 
-  it('rechaza rutas relativas', () => {
+  it('rejects relative paths', () => {
     expect(() => validateWorkspacePath('deployment-123')).toThrow(
-      'La ruta del workspace debe ser absoluta',
+      'Workspace path must be absolute',
     );
   });
 
-  it('rechaza la propia carpeta base', () => {
+  it('rejects the base folder itself', () => {
     expect(() => validateWorkspacePath('/app/workspaces')).toThrow(
-      'La ruta del workspace no está permitida',
+      'Workspace path not allowed',
     );
   });
 
-  it('rechaza rutas fuera de la carpeta permitida', () => {
+  it('rejects paths outside the allowed folder', () => {
     expect(() => validateWorkspacePath('/etc')).toThrow(
-      'La ruta del workspace no está permitida',
+      'Workspace path not allowed',
     );
   });
 
-  it('rechaza intentos de escapar mediante ..', () => {
+  it('rejects escape attempts via ..', () => {
     expect(() =>
       validateWorkspacePath('/app/workspaces/../../etc'),
-    ).toThrow('La ruta del workspace no está permitida');
+    ).toThrow('Workspace path not allowed');
   });
 });

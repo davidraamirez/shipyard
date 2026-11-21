@@ -27,9 +27,9 @@ async function writeDeploymentLog(
       },
     });
   } catch (error) {
-    // Un fallo al guardar el log no debe ocultar el error original.
+    // Failing to save a log must not hide the original error.
     console.error(
-      `No se pudo guardar un log del deployment ${deploymentId}:`,
+      `Could not save a log for deployment ${deploymentId}:`,
       error,
     );
   }
@@ -44,15 +44,15 @@ export async function processDeployment(
 ) {
   const attemptNumber = attemptsMade + 1;
 
-  console.log(`Procesando deployment: ${deploymentId}`);
-  console.log(`Proyecto: ${projectId}`);
-  console.log(`Repositorio: ${repositoryUrl}`);
-  console.log(`Intento: ${attemptNumber}/${maxAttempts}`);
+  console.log(`Processing deployment: ${deploymentId}`);
+  console.log(`Project: ${projectId}`);
+  console.log(`Repository: ${repositoryUrl}`);
+  console.log(`Attempt: ${attemptNumber}/${maxAttempts}`);
 
   await writeDeploymentLog(
     deploymentId,
     'INFO',
-    `Inicio del intento ${attemptNumber}/${maxAttempts}`,
+    `Starting attempt ${attemptNumber}/${maxAttempts}`,
   );
 
   let workspace: string | null = null;
@@ -68,7 +68,7 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Estado actualizado a BUILDING',
+      'Status set to BUILDING',
     );
 
     workspace = await cloneRepository(repositoryUrl, deploymentId);
@@ -76,7 +76,7 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Repositorio clonado correctamente',
+      'Repository cloned',
     );
 
     const commitSha = await getHeadCommit(workspace);
@@ -97,37 +97,37 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      `Tipo de proyecto detectado: ${projectInfo.type}`,
+      `Detected project type: ${projectInfo.type}`,
     );
 
     if (projectInfo.type !== 'NODE') {
       throw new PermanentDeploymentError(
-        `Tipo de proyecto no compatible para build: ${projectInfo.type}`,
+        `Unsupported project type for build: ${projectInfo.type}`,
       );
     }
 
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      `Gestor de paquetes: ${projectInfo.packageManager ?? 'no detectado'}`,
+      `Package manager: ${projectInfo.packageManager ?? 'not detected'}`,
     );
 
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      `Script build: ${projectInfo.buildScript ?? 'no definido'}`,
+      `Build script: ${projectInfo.buildScript ?? 'not defined'}`,
     );
 
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Iniciando build del proyecto',
+      'Starting project build',
     );
 
-    // La salida del build se guarda a medida que llega del build-runner.
+    // Build output is stored as it arrives from the build-runner.
     await buildProject(deploymentId, workspace, projectInfo, async (output) => {
-      // Los trozos llegan cortados por el sondeo y a veces empiezan con un
-      // salto de línea: se quitan los del principio y los del final.
+      // Chunks are split by polling and sometimes start with a
+      // newline: leading and trailing ones are removed.
       const text = output.replace(/^\n+/, '').trimEnd();
 
       if (text) {
@@ -138,7 +138,7 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Build completado correctamente',
+      'Build completed',
     );
 
     await prisma.deployment.update({
@@ -151,7 +151,7 @@ export async function processDeployment(
     await writeDeploymentLog(
       deploymentId,
       'INFO',
-      'Estado actualizado a RUNNING',
+      'Status set to RUNNING',
     );
 
     return {
@@ -161,13 +161,13 @@ export async function processDeployment(
     };
   } catch (error) {
     if (isRecordNotFound(error)) {
-      // El proyecto se borró mientras el job estaba en la cola: no hay nada
-      // que actualizar ni donde guardar logs.
+      // The project was deleted while the job was queued: there is nothing
+      // to update and nowhere to store logs.
       console.warn(
-        `Deployment ${deploymentId}: ya no existe; se descarta el job`,
+        `Deployment ${deploymentId}: no longer exists; dropping the job`,
       );
 
-      throw new UnrecoverableError('El deployment ya no existe');
+      throw new UnrecoverableError('The deployment no longer exists');
     }
 
     const isPermanent = error instanceof PermanentDeploymentError;
@@ -180,8 +180,8 @@ export async function processDeployment(
         deploymentId,
         'ERROR',
         isPermanent
-          ? `Error no recuperable: ${errorMessage}`
-          : `Falló el último intento (${attemptNumber}/${maxAttempts}): ${errorMessage}`,
+          ? `Unrecoverable error: ${errorMessage}`
+          : `Last attempt failed (${attemptNumber}/${maxAttempts}): ${errorMessage}`,
       );
 
       try {
@@ -194,12 +194,12 @@ export async function processDeployment(
           deploymentId,
           'ERROR',
           isPermanent
-            ? 'Estado actualizado a FAILED'
-            : 'Estado actualizado a FAILED tras agotar los intentos',
+            ? 'Status set to FAILED'
+            : 'Status set to FAILED after exhausting all attempts',
         );
       } catch (databaseError) {
         console.error(
-          'No se pudo actualizar el estado en PostgreSQL:',
+          'Could not update the status in PostgreSQL:',
           databaseError,
         );
       }
@@ -207,11 +207,11 @@ export async function processDeployment(
       await writeDeploymentLog(
         deploymentId,
         'WARN',
-        `Falló el intento ${attemptNumber}/${maxAttempts}: ${errorMessage}. BullMQ podrá reintentarlo.`,
+        `Attempt ${attemptNumber}/${maxAttempts} failed: ${errorMessage}. BullMQ will retry it.`,
       );
 
       console.warn(
-        `Deployment ${deploymentId}: intento fallido; BullMQ podrá reintentarlo`,
+        `Deployment ${deploymentId}: attempt failed; BullMQ will retry it`,
       );
     }
 
@@ -224,7 +224,7 @@ export async function processDeployment(
     if (workspace) {
       await removeWorkspace(workspace).catch((cleanupError) => {
         console.error(
-          `No se pudo eliminar el workspace del deployment ${deploymentId}:`,
+          `Could not remove the workspace of deployment ${deploymentId}:`,
           cleanupError,
         );
       });

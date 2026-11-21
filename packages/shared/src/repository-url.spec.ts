@@ -11,7 +11,7 @@ describe('isValidRepositoryUrl', () => {
     'https://bitbucket.org/owner/repo.git',
     'https://github.com/owner/repo.git/',
     'https://GitHub.com/owner/repo.git',
-  ])('acepta %s', (url) => {
+  ])('accepts %s', (url) => {
     expect(isValidRepositoryUrl(url)).toBe(true);
   });
 
@@ -25,33 +25,33 @@ describe('isValidRepositoryUrl', () => {
     'https://github.com:8443/owner/repo.git',
     'https://github.com/owner/repo.git?token=abc',
     'https://github.com/owner/repo.git#main',
-    'no-es-una-url',
-  ])('rechaza %s', (url) => {
+    'not-a-url',
+  ])('rejects %s', (url) => {
     expect(isValidRepositoryUrl(url)).toBe(false);
   });
 
-  it('rechaza valores que no son texto', () => {
+  it('rejects non-string values', () => {
     expect(isValidRepositoryUrl(undefined)).toBe(false);
     expect(isValidRepositoryUrl(42)).toBe(false);
   });
 });
 
 describe('validateRepositoryUrl', () => {
-  it('devuelve la URL parseada', () => {
+  it('returns the parsed URL', () => {
     expect(
       validateRepositoryUrl('https://github.com/owner/repo.git').hostname,
     ).toBe('github.com');
   });
 
   it.each([
-    ['no-es-una-url', 'La URL del repositorio no es válida'],
-    ['http://github.com/owner/repo.git', 'Solo se permiten repositorios HTTPS'],
-    ['https://u:p@github.com/owner/repo.git', 'La URL no puede contener credenciales'],
-    ['https://evil.com/owner/repo.git', 'El proveedor Git no está permitido'],
-    ['https://github.com:8443/owner/repo.git', 'El puerto del repositorio no está permitido'],
-    ['https://github.com/owner/repo.git?x=1', 'La URL no puede contener parámetros ni fragmentos'],
-    ['https://github.com/owner/repo', 'La ruta del repositorio no tiene un formato válido'],
-  ])('rechaza %s con un mensaje claro', (url, message) => {
+    ['not-a-url', 'Invalid repository URL'],
+    ['http://github.com/owner/repo.git', 'Only HTTPS repositories are allowed'],
+    ['https://u:p@github.com/owner/repo.git', 'The URL must not contain credentials'],
+    ['https://evil.com/owner/repo.git', 'Git provider not allowed'],
+    ['https://github.com:8443/owner/repo.git', 'Repository port not allowed'],
+    ['https://github.com/owner/repo.git?x=1', 'The URL must not contain query parameters or fragments'],
+    ['https://github.com/owner/repo', 'Invalid repository path format'],
+  ])('rejects %s with a clear message', (url, message) => {
     expect(() => validateRepositoryUrl(url)).toThrow(message);
   });
 });

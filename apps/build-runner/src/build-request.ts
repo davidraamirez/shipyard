@@ -12,13 +12,13 @@ export type BuildRequest = {
 
 export function validateBuildRequest(value: unknown): BuildRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('La solicitud debe ser un objeto');
+    throw new Error('The request must be an object');
   }
 
   const request = value as Record<string, unknown>;
 
   if (!isDeploymentId(request.deploymentId)) {
-    throw new Error('deploymentId no válido');
+    throw new Error('Invalid deploymentId');
   }
 
   if (
@@ -26,25 +26,25 @@ export function validateBuildRequest(value: unknown): BuildRequest {
     request.commands.length < 1 ||
     request.commands.length > 2
   ) {
-    throw new Error('La lista de comandos no es válida');
+    throw new Error('Invalid command list');
   }
 
   const commands: BuildCommand[] = request.commands.map((value) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      throw new Error('Comando no válido');
+      throw new Error('Invalid command');
     }
 
     const command = value as Record<string, unknown>;
 
     if (!isPackageManager(command.command)) {
-      throw new Error('Gestor de paquetes no permitido');
+      throw new Error('Package manager not allowed');
     }
 
     if (
       !Array.isArray(command.args) ||
       !command.args.every((arg) => typeof arg === 'string')
     ) {
-      throw new Error('Argumentos no válidos');
+      throw new Error('Invalid arguments');
     }
 
     const buildCommand: BuildCommand = {
@@ -53,7 +53,7 @@ export function validateBuildRequest(value: unknown): BuildRequest {
     };
 
     if (!isAllowedBuildCommand(buildCommand)) {
-      throw new Error('Combinación de comando y argumentos no permitida');
+      throw new Error('Command and arguments combination not allowed');
     }
 
     return buildCommand;

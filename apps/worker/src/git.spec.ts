@@ -10,7 +10,7 @@ describe('removeWorkspace', () => {
   beforeAll(async () => {
     workspacesDir = await mkdtemp(path.join(tmpdir(), 'shipyard-ws-'));
     vi.stubEnv('WORKSPACES_DIR', workspacesDir);
-    // config.ts lee WORKSPACES_DIR al importarse.
+    // config.ts reads WORKSPACES_DIR when imported.
     vi.resetModules();
     ({ removeWorkspace } = await import('./git.js'));
   });
@@ -20,7 +20,7 @@ describe('removeWorkspace', () => {
     await rm(workspacesDir, { recursive: true, force: true });
   });
 
-  it('elimina un workspace dentro del directorio permitido', async () => {
+  it('removes a workspace inside the allowed directory', async () => {
     const workspace = path.join(workspacesDir, 'deployment-1');
     await mkdir(workspace);
     await writeFile(path.join(workspace, 'package.json'), '{}');
@@ -31,16 +31,16 @@ describe('removeWorkspace', () => {
   });
 
   it.each([
-    ['la propia carpeta base', () => workspacesDir],
-    ['una carpeta hermana', () => path.join(workspacesDir, '..', 'otra')],
-    ['un traversal', () => path.join(workspacesDir, 'a', '..', '..')],
-  ])('rechaza %s', async (_name, getPath) => {
+    ['the base folder itself', () => workspacesDir],
+    ['a sibling folder', () => path.join(workspacesDir, '..', 'other')],
+    ['a traversal', () => path.join(workspacesDir, 'a', '..', '..')],
+  ])('rejects %s', async (_name, getPath) => {
     await expect(removeWorkspace(getPath())).rejects.toThrow(
-      'La ruta del workspace no está permitida',
+      'Workspace path not allowed',
     );
   });
 
-  it('no borra la carpeta base al rechazarla', async () => {
+  it('does not delete the base folder when rejecting it', async () => {
     await removeWorkspace(workspacesDir).catch(() => undefined);
 
     await expect(stat(workspacesDir)).resolves.toBeTruthy();

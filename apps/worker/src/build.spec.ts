@@ -18,7 +18,7 @@ describe('buildProject', () => {
     await rm(workspace, { recursive: true, force: true });
   });
 
-  it('rechaza proyectos desconocidos', async () => {
+  it('rejects unknown projects', async () => {
     const projectInfo: ProjectInfo = {
       type: 'UNKNOWN',
       packageManager: null,
@@ -28,11 +28,11 @@ describe('buildProject', () => {
     await expect(
       buildProject(DEPLOYMENT_ID, workspace, projectInfo),
     ).rejects.toThrow(
-      'No existe una estrategia de build para UNKNOWN',
+      'No build strategy for UNKNOWN',
     );
   });
 
-  it('rechaza proyectos Node sin package.json', async () => {
+  it('rejects Node projects without package.json', async () => {
     const projectInfo: ProjectInfo = {
       type: 'NODE',
       packageManager: 'pnpm',
@@ -42,11 +42,11 @@ describe('buildProject', () => {
     await expect(
       buildProject(DEPLOYMENT_ID, workspace, projectInfo),
     ).rejects.toThrow(
-      'No se encuentra package.json en el proyecto',
+      'package.json not found in the project',
     );
   });
 
-  it('rechaza proyectos sin lockfile', async () => {
+  it('rejects projects without a lockfile', async () => {
     await writeFile(
       join(workspace, 'package.json'),
       JSON.stringify({ name: 'test-project' }),
@@ -61,7 +61,7 @@ describe('buildProject', () => {
     await expect(
       buildProject(DEPLOYMENT_ID, workspace, projectInfo),
     ).rejects.toThrow(
-      'No se encuentra pnpm-lock.yaml',
+      'pnpm-lock.yaml not found',
     );
   });
 });

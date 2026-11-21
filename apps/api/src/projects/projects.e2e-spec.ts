@@ -48,7 +48,7 @@ describe('Projects authentication (e2e)', () => {
           useValue: {
             getOrThrow: (key: string) => {
               if (key === 'JWT_SECRET') return jwtSecret;
-              throw new Error(`Configuración desconocida: ${key}`);
+              throw new Error(`Unknown config: ${key}`);
             },
           },
         },
@@ -77,7 +77,7 @@ describe('Projects authentication (e2e)', () => {
     await app.close();
   });
 
-  it('responde 401 cuando no se envía un token', async () => {
+  it('returns 401 when no token is sent', async () => {
     await request(app.getHttpServer())
       .get('/projects')
       .expect(401);
@@ -85,16 +85,16 @@ describe('Projects authentication (e2e)', () => {
     expect(projectsServiceMock.findAll).not.toHaveBeenCalled();
   });
 
-  it('responde 401 cuando el token es inválido', async () => {
+  it('returns 401 when the token is invalid', async () => {
     await request(app.getHttpServer())
       .get('/projects')
-      .set('Authorization', 'Bearer token-invalido')
+      .set('Authorization', 'Bearer invalid-token')
       .expect(401);
 
     expect(projectsServiceMock.findAll).not.toHaveBeenCalled();
   });
 
-  it('permite acceder con un JWT válido', async () => {
+  it('allows access with a valid JWT', async () => {
     const token = await jwtService.signAsync({
       sub: 'user-1',
       email: 'test@example.com',
@@ -110,14 +110,14 @@ describe('Projects authentication (e2e)', () => {
     expect(projectsServiceMock.findAll).toHaveBeenCalledWith('user-1');
   });
 
-  it('responde 400 cuando el id no es un UUID', async () => {
+  it('returns 400 when the id is not a UUID', async () => {
     const token = await jwtService.signAsync({
       sub: 'user-1',
       email: 'test@example.com',
     });
 
     await request(app.getHttpServer())
-      .get('/projects/no-es-un-uuid')
+      .get('/projects/not-a-uuid')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
 

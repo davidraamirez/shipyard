@@ -25,7 +25,7 @@ describe('AuthController', () => {
     } as any);
   });
 
-  it('debe delegar el registro en AuthService', async () => {
+  it('delegates registration to AuthService', async () => {
     const body = {
       name: 'Bob',
       email: 'bob@example.com',
@@ -45,7 +45,7 @@ describe('AuthController', () => {
     expect(mocks.register).toHaveBeenCalledOnce();
   });
 
-  it('debe delegar el login en AuthService', async () => {
+  it('delegates login to AuthService', async () => {
     const body = {
       email: 'bob@example.com',
       password: 'Password123!',
@@ -62,8 +62,8 @@ describe('AuthController', () => {
     expect(mocks.login).toHaveBeenCalledOnce();
   });
 
-  it('debe propagar los errores del registro', async () => {
-    const error = new Error('Error de registro');
+  it('propagates registration errors', async () => {
+    const error = new Error('Registration error');
     mocks.register.mockRejectedValue(error);
 
     await expect(
@@ -75,8 +75,8 @@ describe('AuthController', () => {
     ).rejects.toBe(error);
   });
 
-  it('debe propagar los errores del login', async () => {
-    const error = new Error('Credenciales incorrectas');
+  it('propagates login errors', async () => {
+    const error = new Error('Invalid credentials');
     mocks.login.mockRejectedValue(error);
 
     await expect(

@@ -1,3 +1,3 @@
 
-console.log("¡Hola desde un contenedor Docker!");
-console.log("Shipyard está aprendiendo a construir imágenes.");
+console.log("Hello from a Docker container!");
+console.log("Shipyard is learning to build images.");

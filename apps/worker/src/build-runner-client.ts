@@ -3,7 +3,7 @@ import { PermanentDeploymentError } from './errors.js';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 2_000;
-// Dos pasos de 10 min como máximo en el build-runner, más margen.
+// At most two 10-min steps in the build-runner, plus margin.
 const BUILD_TIMEOUT_MS = 25 * 60 * 1000;
 
 export type BuildRunnerRequest = {
@@ -32,13 +32,13 @@ function getRunnerConfig() {
   const token = process.env.BUILD_RUNNER_TOKEN;
 
   if (!baseUrl || !token) {
-    throw new Error('Build runner no está configurado');
+    throw new Error('Build runner is not configured');
   }
 
   const url = new URL(baseUrl);
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('Protocolo del build runner no permitido');
+    throw new Error('Build runner protocol not allowed');
   }
 
   return { baseUrl: url, token };
@@ -60,9 +60,9 @@ function isSnapshot(value: unknown): value is BuildSnapshot {
 const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-// Lanza el build en el build-runner y lo sigue hasta que termina, pasando la
-// salida nueva a onOutput. Lanza PermanentDeploymentError si reintentar no
-// cambiaría el resultado y Error normal si el fallo es transitorio.
+// Starts the build in the build-runner and follows it until it ends, passing new
+// output to onOutput. Throws PermanentDeploymentError if retrying would not
+// change the result, and a plain Error if the failure is transient.
 export async function runRemoteBuild(
   request: BuildRunnerRequest,
   onOutput: (text: string) => Promise<void> | void,
@@ -87,7 +87,7 @@ export async function runRemoteBuild(
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(`No se pudo contactar con el build runner: ${reason}`);
+      throw new Error(`Could not reach the build runner: ${reason}`);
     }
 
     const body = (await response.json().catch(() => null)) as unknown;
@@ -97,7 +97,7 @@ export async function runRemoteBuild(
   const errorMessage = (body: unknown, status: number) =>
     body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
       ? (body as { error: string }).error
-      : `Build runner respondió con HTTP ${status}`;
+      : `Build runner responded with HTTP ${status}`;
 
   const started = await call('/builds', {
     method: 'POST',
@@ -107,7 +107,7 @@ export async function runRemoteBuild(
   if (started.response.status !== 202) {
     const message = errorMessage(started.body, started.response.status);
 
-    // 400: la petición no es válida; repetirla daría el mismo resultado.
+    // 400: the request is invalid; repeating it would give the same result.
     if (started.response.status === 400) {
       throw new PermanentDeploymentError(message);
     }
@@ -116,7 +116,7 @@ export async function runRemoteBuild(
   }
 
   if (!isSnapshot(started.body)) {
-    throw new Error('Respuesta no válida del build runner');
+    throw new Error('Invalid response from the build runner');
   }
 
   let snapshot = started.body;
@@ -131,10 +131,10 @@ export async function runRemoteBuild(
     }
 
     if (snapshot.status === 'failed') {
-      const message = snapshot.error ?? 'El build ha fallado';
+      const message = snapshot.error ?? 'The build failed';
 
-      // Un build que falla volverá a fallar con el mismo commit. La
-      // instalación sí puede fallar por la red, así que se reintenta.
+      // A failing build will fail again on the same commit. Install,
+      // however, can fail because of the network, so it is retried.
       if (snapshot.failedStep === 'build') {
         throw new PermanentDeploymentError(message);
       }
@@ -143,7 +143,7 @@ export async function runRemoteBuild(
     }
 
     if (Date.now() > deadline) {
-      throw new Error('El build superó el tiempo máximo de espera');
+      throw new Error('The build exceeded the maximum wait time');
     }
 
     await sleep(pollIntervalMs);
@@ -153,7 +153,7 @@ export async function runRemoteBuild(
     );
 
     if (polled.response.status === 404) {
-      throw new Error('El build runner perdió el estado del build (¿se reinició?)');
+      throw new Error('The build runner lost the build state (did it restart?)');
     }
 
     if (!polled.response.ok) {
@@ -161,7 +161,7 @@ export async function runRemoteBuild(
     }
 
     if (!isSnapshot(polled.body)) {
-      throw new Error('Respuesta no válida del build runner');
+      throw new Error('Invalid response from the build runner');
     }
 
     snapshot = polled.body;

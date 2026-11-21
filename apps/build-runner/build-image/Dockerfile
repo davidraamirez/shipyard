@@ -1,5 +1,5 @@
-# Imagen de los contenedores de build (shipyard-build-node:22).
-# Construir con: pnpm build:image
+# Image for the build containers (shipyard-build-node:22).
+# Build it with: pnpm build:image
 FROM node:22-alpine
 
 RUN apk add --no-cache tini \
@@ -12,15 +12,15 @@ ENV npm_config_audit=false
 ENV npm_config_fund=false
 ENV npm_config_update_notifier=false
 
-# El sistema de archivos del contenedor es de solo lectura: HOME y las cachés
-# de pnpm/npm/yarn viven dentro del workspace y se borran con él.
+# The container filesystem is read-only: HOME and the pnpm/npm/yarn
+# caches live inside the workspace and are deleted with it.
 ENV HOME=/workspace/.shipyard-home
 ENV XDG_CACHE_HOME=/workspace/.shipyard-home/.cache
 ENV XDG_DATA_HOME=/workspace/.shipyard-home/.local/share
 
 WORKDIR /workspace
 
-# UID 1000, el mismo usuario que clona el repositorio en el worker.
+# UID 1000, the same user that clones the repository in the worker.
 USER node
 
 ENTRYPOINT ["/sbin/tini", "--"]

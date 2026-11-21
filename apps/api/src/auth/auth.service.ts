@@ -43,7 +43,7 @@ export class AuthService {
         error.code === 'P2002'
       ) {
         throw new ConflictException(
-          'Ya existe un usuario con ese email',
+          'A user with that email already exists',
         );
       }
 
@@ -57,7 +57,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const passwordMatches = await compare(
@@ -66,7 +66,7 @@ export class AuthService {
     );
 
     if (!passwordMatches) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const accessToken = await this.jwtService.signAsync({

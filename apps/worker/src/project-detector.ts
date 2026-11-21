@@ -45,7 +45,7 @@ export async function detectProject(
       await readFile(packageJsonPath, 'utf8'),
     ) as PackageJson;
   } catch {
-    throw new Error('El package.json del repositorio no es válido');
+    throw new Error('The repository package.json is invalid');
   }
 
   const scripts =

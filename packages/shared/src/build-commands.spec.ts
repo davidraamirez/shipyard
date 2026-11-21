@@ -8,7 +8,7 @@ import {
 } from './build-commands.js';
 
 describe('isAllowedBuildCommand', () => {
-  it.each(PACKAGE_MANAGERS)('acepta install y build de %s', (manager) => {
+  it.each(PACKAGE_MANAGERS)('accepts install and build for %s', (manager) => {
     expect(
       isAllowedBuildCommand({ command: manager, args: [...INSTALL_ARGS[manager]] }),
     ).toBe(true);
@@ -17,25 +17,25 @@ describe('isAllowedBuildCommand', () => {
     ).toBe(true);
   });
 
-  it('todas las instalaciones desactivan los scripts del repositorio', () => {
+  it('every install disables repository scripts', () => {
     for (const manager of PACKAGE_MANAGERS) {
       expect(INSTALL_ARGS[manager]).toContain('--ignore-scripts');
     }
   });
 
-  it('rechaza argumentos inyectados', () => {
+  it('rejects injected arguments', () => {
     expect(
       isAllowedBuildCommand({ command: 'pnpm', args: ['install && rm -rf /'] }),
     ).toBe(false);
   });
 
-  it('rechaza instalar sin --ignore-scripts', () => {
+  it('rejects installing without --ignore-scripts', () => {
     expect(
       isAllowedBuildCommand({ command: 'npm', args: ['ci'] }),
     ).toBe(false);
   });
 
-  it('rechaza argumentos extra al final', () => {
+  it('rejects trailing extra arguments', () => {
     expect(
       isAllowedBuildCommand({
         command: 'pnpm',
@@ -46,7 +46,7 @@ describe('isAllowedBuildCommand', () => {
 });
 
 describe('isPackageManager', () => {
-  it('solo acepta pnpm, npm y yarn', () => {
+  it('only accepts pnpm, npm and yarn', () => {
     expect(isPackageManager('pnpm')).toBe(true);
     expect(isPackageManager('bash')).toBe(false);
     expect(isPackageManager(undefined)).toBe(false);

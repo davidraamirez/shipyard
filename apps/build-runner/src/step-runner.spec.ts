@@ -43,22 +43,22 @@ describe('DockerStepRunner', () => {
       0,
     );
 
-  it('emite la salida incremental y devuelve el código de salida', async () => {
+  it('emits incremental output and returns the exit code', async () => {
     docker.inspectContainer
       .mockResolvedValueOnce({ running: true, exitCode: 0 })
       .mockResolvedValueOnce({ running: false, exitCode: 0 });
     docker.containerLogs
-      .mockResolvedValueOnce('linea 1\n')
-      .mockResolvedValueOnce('linea 1\nlinea 2\n');
+      .mockResolvedValueOnce('line 1\n')
+      .mockResolvedValueOnce('line 1\nline 2\n');
     const chunks: string[] = [];
 
     const exitCode = await createRunner().run(deploymentId, install, (text) => chunks.push(text));
 
     expect(exitCode).toBe(0);
-    expect(chunks).toEqual(['linea 1\n', 'linea 2\n']);
+    expect(chunks).toEqual(['line 1\n', 'line 2\n']);
   });
 
-  it('crea el contenedor con nombre y configuración del paso', async () => {
+  it('creates the container with the step name and config', async () => {
     docker.inspectContainer.mockResolvedValue({ running: false, exitCode: 0 });
     docker.containerLogs.mockResolvedValue('');
 
@@ -69,7 +69,7 @@ describe('DockerStepRunner', () => {
     expect(spec.HostConfig.NetworkMode).toBe('none');
   });
 
-  it('elimina restos de un intento anterior antes de crear el contenedor', async () => {
+  it('removes leftovers of a previous attempt before creating the container', async () => {
     docker.inspectContainer.mockResolvedValue({ running: false, exitCode: 0 });
     docker.containerLogs.mockResolvedValue('');
 
@@ -84,7 +84,7 @@ describe('DockerStepRunner', () => {
     );
   });
 
-  it('elimina siempre el contenedor al terminar', async () => {
+  it('always removes the container at the end', async () => {
     docker.inspectContainer.mockResolvedValue({ running: false, exitCode: 1 });
     docker.containerLogs.mockResolvedValue('');
 
@@ -93,7 +93,7 @@ describe('DockerStepRunner', () => {
     expect(docker.removeContainer).toHaveBeenLastCalledWith('container-1');
   });
 
-  it('mata y elimina el contenedor al superar el tiempo límite', async () => {
+  it('kills and removes the container when it exceeds the time limit', async () => {
     docker.inspectContainer.mockResolvedValue({ running: true, exitCode: 0 });
     docker.containerLogs.mockResolvedValue('');
 
@@ -105,7 +105,7 @@ describe('DockerStepRunner', () => {
     expect(docker.removeContainer).toHaveBeenLastCalledWith('container-1');
   });
 
-  it('elimina el contenedor aunque falle el arranque', async () => {
+  it('removes the container even if starting it fails', async () => {
     docker.startContainer.mockRejectedValueOnce(new Error('No such image'));
 
     await expect(createRunner().run(deploymentId, install, () => {})).rejects.toThrow(

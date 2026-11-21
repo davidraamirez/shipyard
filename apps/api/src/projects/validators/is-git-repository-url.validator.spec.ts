@@ -22,7 +22,7 @@ describe('IsGitRepositoryUrl', () => {
     'https://gitlab.com/owner/repo.git',
     'https://bitbucket.org/owner/repo.git',
     'https://github.com/owner/repo.git/',
-  ])('acepta %s', async (url) => {
+  ])('accepts %s', async (url) => {
     await expect(isValid(url)).resolves.toBe(true);
   });
 
@@ -34,8 +34,8 @@ describe('IsGitRepositoryUrl', () => {
     'https://github.com:8443/owner/repo.git',
     'https://github.com/owner/repo.git?token=abc',
     'https://github.com/owner/repo.git#main',
-    'no-es-una-url',
-  ])('rechaza %s', async (url) => {
+    'not-a-url',
+  ])('rejects %s', async (url) => {
     await expect(isValid(url)).resolves.toBe(false);
   });
 });

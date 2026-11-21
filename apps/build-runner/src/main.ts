@@ -27,7 +27,7 @@ function send(response: ServerResponse, status: number, body: unknown) {
   response.end(JSON.stringify(body));
 }
 
-// Comparación en tiempo constante para no filtrar el token por tiempos.
+// Constant-time comparison so timing does not leak the token.
 function isAuthorized(header: string | undefined, token: string): boolean {
   const expected = Buffer.from(`Bearer ${token}`);
   const received = Buffer.from(header ?? '');
@@ -44,7 +44,7 @@ function readBody(request: IncomingMessage): Promise<string> {
     request.setEncoding('utf8');
     request.on('data', (chunk: string) => {
       if (body.length + chunk.length > MAX_BODY_LENGTH) {
-        reject(new RangeError('Solicitud demasiado grande'));
+        reject(new RangeError('Request too large'));
         request.destroy();
         return;
       }
@@ -78,12 +78,12 @@ export function createBuildRunnerServer({
     }
 
     if (!token) {
-      send(response, 503, { error: 'Build runner no configurado' });
+      send(response, 503, { error: 'Build runner not configured' });
       return;
     }
 
     if (!isAuthorized(request.headers.authorization, token)) {
-      send(response, 401, { error: 'No autorizado' });
+      send(response, 401, { error: 'Unauthorized' });
       return;
     }
 
@@ -92,14 +92,14 @@ export function createBuildRunnerServer({
       const after = Number(url.searchParams.get('after') ?? 0);
 
       if (!isDeploymentId(deploymentId) || !Number.isInteger(after) || after < 0) {
-        send(response, 400, { error: 'Parámetros no válidos' });
+        send(response, 400, { error: 'Invalid parameters' });
         return;
       }
 
       const build = manager.get(deploymentId, after);
 
       if (!build) {
-        send(response, 404, { error: 'Build no encontrado' });
+        send(response, 404, { error: 'Build not found' });
         return;
       }
 
@@ -124,25 +124,25 @@ export function createBuildRunnerServer({
       }
 
       const message =
-        error instanceof Error ? error.message : 'Solicitud no válida';
+        error instanceof Error ? error.message : 'Invalid request';
 
       send(
         response,
-        message === 'No se encuentra el workspace del deployment' ? 404 : 400,
+        message === 'Deployment workspace not found' ? 404 : 400,
         { error: message },
       );
     }
   });
 }
 
-// Deja Docker listo: red de instalación, imagen de build y sin contenedores
-// huérfanos de un reinicio anterior.
+// Gets Docker ready: install network, build image and no orphan containers
+// from a previous restart.
 async function prepareDocker(docker: DockerClient, network: string, image: string) {
   await docker.ensureNetwork(network);
 
   if (!(await docker.imageExists(image))) {
     console.error(
-      `No existe la imagen de build ${image}. Constrúyela con "pnpm build:image".`,
+      `Build image ${image} not found. Build it with "pnpm build:image".`,
     );
   }
 
@@ -153,7 +153,7 @@ async function prepareDocker(docker: DockerClient, network: string, image: strin
   }
 
   if (orphans.length > 0) {
-    console.log(`Eliminados ${orphans.length} contenedores de build huérfanos`);
+    console.log(`Removed ${orphans.length} orphan build containers`);
   }
 }
 
@@ -180,11 +180,11 @@ if (process.env.NODE_ENV !== 'test') {
         error instanceof DockerApiError || error instanceof Error
           ? error.message
           : String(error);
-      console.error(`No se pudo preparar Docker: ${message}`);
+      console.error(`Could not prepare Docker: ${message}`);
     })
     .finally(() => {
       server.listen(port, host, () => {
-        console.log(`Build runner escuchando en ${host}:${port}`);
+        console.log(`Build runner listening on ${host}:${port}`);
       });
     });
 }

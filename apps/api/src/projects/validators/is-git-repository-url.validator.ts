@@ -20,7 +20,7 @@ export function IsGitRepositoryUrl(
         },
 
         defaultMessage(args: ValidationArguments): string {
-          return `${args.property} debe ser una URL HTTPS válida de GitHub, GitLab o Bitbucket y terminar en .git`;
+          return `${args.property} must be a valid HTTPS GitHub, GitLab or Bitbucket URL ending in .git`;
         },
       },
     });

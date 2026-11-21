@@ -10,7 +10,7 @@ export type BuildStep = 'install' | 'build';
 
 export const DEPLOYMENT_LABEL = 'shipyard.deployment';
 
-// UID del usuario "node", el mismo que clona el repositorio en el worker.
+// UID of the "node" user, the same one that clones the repository in the worker.
 const BUILD_USER = '1000:1000';
 
 export function getBuildStep(command: BuildCommand): BuildStep {
@@ -32,21 +32,21 @@ type ContainerSpecInput = {
   config: BuildRunnerConfig;
 };
 
-// Única fuente de la configuración de un contenedor de build. Nada de la
-// petición llega aquí sin validar: el id es un UUID y el comando sale de la
-// lista blanca. Crear contenedores equivale a root en el host, así que toda
-// restricción de seguridad tiene que estar fijada aquí.
+// Single source of a build container configuration. Nothing from the
+// request gets here unvalidated: the id is a UUID and the command comes from the
+// allowlist. Creating containers is root-equivalent on the host, so every
+// security restriction has to be set here.
 export function createContainerSpec({
   deploymentId,
   command,
   config,
 }: ContainerSpecInput) {
   if (!isDeploymentId(deploymentId)) {
-    throw new Error('deploymentId no válido');
+    throw new Error('Invalid deploymentId');
   }
 
   if (!isAllowedBuildCommand(command)) {
-    throw new Error('Combinación de comando y argumentos no permitida');
+    throw new Error('Command and arguments combination not allowed');
   }
 
   const step = getBuildStep(command);
@@ -56,11 +56,11 @@ export function createContainerSpec({
     Cmd: [command.command, ...command.args],
     User: BUILD_USER,
     WorkingDir: '/workspace',
-    // Con Tty la salida llega sin multiplexar (stdout y stderr juntos).
+    // With Tty the output is not multiplexed (stdout and stderr together).
     Tty: true,
     AttachStdin: false,
     OpenStdin: false,
-    // La instalación necesita el registro de paquetes; el build no tiene red.
+    // Install needs the package registry; the build has no network.
     NetworkDisabled: step === 'build',
     Labels: {
       [DEPLOYMENT_LABEL]: deploymentId,
@@ -68,7 +68,7 @@ export function createContainerSpec({
     },
     HostConfig: {
       NetworkMode: step === 'install' ? config.installNetwork : 'none',
-      // Cada build solo ve la carpeta de su deployment dentro del volumen.
+      // Each build only sees its deployment folder inside the volume.
       Mounts: [
         {
           Type: 'volume',

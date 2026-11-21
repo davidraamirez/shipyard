@@ -13,7 +13,7 @@ export async function buildProject(
 ): Promise<void> {
   if (projectInfo.type !== 'NODE') {
     throw new PermanentDeploymentError(
-      `No existe una estrategia de build para ${projectInfo.type}`,
+      `No build strategy for ${projectInfo.type}`,
     );
   }
 
@@ -21,7 +21,7 @@ export async function buildProject(
     .catch(() => null);
 
   if (!packageJson?.isFile()) {
-    throw new PermanentDeploymentError('No se encuentra package.json en el proyecto');
+    throw new PermanentDeploymentError('package.json not found in the project');
   }
 
   const lockFiles = {
@@ -34,7 +34,7 @@ export async function buildProject(
 
   if (!manager) {
     throw new PermanentDeploymentError(
-      'No se ha detectado un gestor de paquetes compatible',
+      'No supported package manager detected',
     );
   }
 
@@ -45,7 +45,7 @@ export async function buildProject(
 
   if (!hasLockFile) {
     throw new PermanentDeploymentError(
-      `No se encuentra ${lockFile}. No se instalarán dependencias sin un lockfile.`,
+      `${lockFile} not found. Dependencies are not installed without a lockfile.`,
     );
   }
 

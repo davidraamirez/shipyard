@@ -8,12 +8,12 @@ export type BuildStatus = 'running' | 'succeeded' | 'failed';
 export type BuildSnapshot = {
   deploymentId: string;
   status: BuildStatus;
-  // Salida a partir del offset pedido; nextOffset es el siguiente "after".
+  // Output from the requested offset; nextOffset is the next "after".
   output: string;
   nextOffset: number;
   truncated: boolean;
   error: string | null;
-  // Paso que falló. null si el fallo fue de infraestructura (Docker).
+  // Step that failed. null if it was an infrastructure (Docker) failure.
   failedStep: BuildStep | null;
 };
 
@@ -36,8 +36,8 @@ type BuildManagerOptions = {
   retentionMs?: number;
 };
 
-// Secuencias de escape ANSI (colores, cursor) y retornos de carro de las
-// barras de progreso: no aportan nada en los logs guardados.
+// ANSI escape sequences (colors, cursor) and carriage returns from progress
+// bars: they add nothing to stored logs.
 const ANSI_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 
 function cleanOutput(text: string): string {
@@ -48,8 +48,8 @@ function describe(command: BuildCommand): string {
   return [command.command, ...command.args].join(' ');
 }
 
-// Estado de los builds en memoria. Si el build-runner se reinicia se pierde
-// y el worker recibe 404, que trata como error transitorio.
+// In-memory build state. It is lost if the build-runner restarts,
+// and the worker gets a 404, which it treats as a transient error.
 export class BuildManager {
   private readonly builds = new Map<string, BuildState>();
   private readonly retentionMs: number;
@@ -64,13 +64,13 @@ export class BuildManager {
   start(request: BuildRequest): BuildSnapshot {
     const existing = this.builds.get(request.deploymentId);
 
-    // Idempotente: repetir el POST mientras se ejecuta no lanza otro build.
+    // Idempotent: repeating the POST while running does not start another build.
     if (existing?.status === 'running') {
       return this.snapshot(existing, 0);
     }
 
     if (this.runningCount() >= this.options.maxConcurrentBuilds) {
-      throw new BuildBusyError('Se ha alcanzado el máximo de builds simultáneos');
+      throw new BuildBusyError('Maximum number of concurrent builds reached');
     }
 
     const state: BuildState = {
@@ -127,7 +127,7 @@ export class BuildManager {
     }
 
     state.output += clean.slice(0, Math.max(0, remaining));
-    state.output += '\n[salida truncada]\n';
+    state.output += '\n[output truncated]\n';
     state.truncated = true;
   }
 
@@ -148,7 +148,7 @@ export class BuildManager {
         if (exitCode !== 0) {
           state.status = 'failed';
           state.failedStep = currentStep;
-          state.error = `"${describe(command)}" terminó con código ${exitCode}`;
+          state.error = `"${describe(command)}" exited with code ${exitCode}`;
           return;
         }
       }
@@ -156,7 +156,7 @@ export class BuildManager {
       state.status = 'succeeded';
     } catch (error) {
       state.status = 'failed';
-      // Un timeout es culpa del paso; cualquier otro error, de Docker.
+      // A timeout is the step's fault; any other error is Docker's.
       state.failedStep =
         error instanceof Error && error.name === 'StepTimeoutError'
           ? currentStep

@@ -4,9 +4,9 @@ services:
     container_name: shipyard-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:?Falta POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -21,7 +21,7 @@ services:
     image: redis:7-alpine
     container_name: shipyard-redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Falta REDIS_PASSWORD}"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD}
     ports:
@@ -53,7 +53,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -87,7 +87,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       BUILD_RUNNER_URL: http://build-runner:8080
-      BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?Falta BUILD_RUNNER_TOKEN}
+      BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?BUILD_RUNNER_TOKEN is required}
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,11 +118,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
-      BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?Falta BUILD_RUNNER_TOKEN}
+      BUILD_RUNNER_TOKEN: ${BUILD_RUNNER_TOKEN:?BUILD_RUNNER_TOKEN is required}
       DOCKER_HOST: http://docker-proxy:2375
       BUILD_IMAGE: shipyard-build-node:22
-      # Nombre real del volumen (ver "name" abajo): se monta en los
-      # contenedores de build con un subpath por deployment.
+      # Real volume name (see "name" below): mounted into the
+      # build containers with one subpath per deployment.
       BUILD_WORKSPACES_VOLUME: shipyard_workspaces
       BUILD_NETWORK: shipyard_build_egress
     depends_on:
@@ -139,9 +139,9 @@ services:
     volumes:
       - shipyard_workspaces:/app/workspaces:ro
 
-  # Acceso restringido a la API de Docker, solo para el build-runner.
-  # No es un sandbox: crear contenedores equivale a root en el host; la
-  # seguridad depende de que el build-runner fije toda la configuración.
+  # Restricted Docker API access, only for the build-runner.
+  # Not a sandbox: creating containers is root-equivalent on the host;
+  # security relies on the build-runner fixing the whole configuration.
   docker-proxy:
     image: tecnativa/docker-socket-proxy@sha256:be1ac64f33bd82043beb504822a17ba6b71668ea1ad7cf51a9a01d27bb7ab047
     container_name: shipyard-docker-proxy
@@ -149,7 +149,7 @@ services:
     read_only: true
     security_opt:
       - no-new-privileges:true
-    # La imagen genera haproxy.cfg en /tmp al arrancar.
+    # The image writes haproxy.cfg to /tmp on startup.
     tmpfs:
       - /tmp
       - /run
@@ -165,7 +165,7 @@ services:
       - docker-api
 
 networks:
-  # Red interna sin salida: solo build-runner y docker-proxy.
+  # Internal network without egress: only build-runner and docker-proxy.
   docker-api:
     internal: true
 

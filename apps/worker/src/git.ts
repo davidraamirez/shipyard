@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 const GIT_TIMEOUT_MS = 120_000;
 
-// Git sin configuración global ni de sistema y sin pedir credenciales.
+// Git with no global or system config and no credential prompts.
 const GIT_ENV = {
   ...process.env,
   GIT_TERMINAL_PROMPT: '0',
@@ -69,7 +69,7 @@ export async function cloneRepository(
     const message =
       error instanceof Error ? error.message : String(error);
 
-    throw new Error(`No se pudo clonar el repositorio: ${message}`);
+    throw new Error(`Could not clone the repository: ${message}`);
   }
 }
 
@@ -83,13 +83,13 @@ export async function getHeadCommit(workspace: string): Promise<string> {
   const commitSha = stdout.trim();
 
   if (!/^[0-9a-f]{40}$/.test(commitSha)) {
-    throw new Error('No se pudo obtener el commit del repositorio');
+    throw new Error('Could not read the repository commit');
   }
 
   return commitSha;
 }
 
-// Solo borra directorios dentro de WORKSPACES_DIR.
+// Only deletes directories inside WORKSPACES_DIR.
 export async function removeWorkspace(workspace: string): Promise<void> {
   const relativePath = path.relative(WORKSPACES_DIR, workspace);
 
@@ -98,7 +98,7 @@ export async function removeWorkspace(workspace: string): Promise<void> {
     relativePath.startsWith('..') ||
     path.isAbsolute(relativePath)
   ) {
-    throw new Error('La ruta del workspace no está permitida');
+    throw new Error('Workspace path not allowed');
   }
 
   await rm(workspace, { recursive: true, force: true });

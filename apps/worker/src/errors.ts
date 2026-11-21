@@ -1,12 +1,12 @@
-// Error que no se arregla reintentando (proyecto no compatible, falta el
-// lockfile, URL no válida...). El processor lo convierte en un
-// UnrecoverableError de BullMQ para no gastar los reintentos.
+// Error that retrying won't fix (unsupported project, missing
+// lockfile, invalid URL...). The processor turns it into a BullMQ
+// UnrecoverableError so retries are not wasted.
 export class PermanentDeploymentError extends Error {
   override name = 'PermanentDeploymentError';
 }
 
-// Prisma P2025: el registro no existe. Pasa cuando el proyecto (y con él el
-// deployment, por el cascade) se borra mientras el job está en la cola.
+// Prisma P2025: the record does not exist. It happens when the project (and with
+// it the deployment, via cascade) is deleted while the job is queued.
 export function isRecordNotFound(error: unknown): boolean {
   return (
     typeof error === 'object' &&

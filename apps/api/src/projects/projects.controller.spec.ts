@@ -41,7 +41,7 @@ describe('ProjectsController', () => {
     } as any);
   });
 
-  it('debe listar los proyectos del usuario autenticado', async () => {
+  it('lists the projects of the authenticated user', async () => {
     const projects = [{ id: 'project-1', name: 'Shipyard' }];
     mocks.findAll.mockResolvedValue(projects);
 
@@ -50,7 +50,7 @@ describe('ProjectsController', () => {
     expect(mocks.findAll).toHaveBeenCalledWith('user-1');
   });
 
-  it('debe crear un proyecto asociado al usuario autenticado', async () => {
+  it('creates a project owned by the authenticated user', async () => {
     const body = {
       name: 'Shipyard',
       repositoryUrl: 'https://github.com/example/shipyard',
@@ -65,7 +65,7 @@ describe('ProjectsController', () => {
     expect(mocks.create).toHaveBeenCalledWith('user-1', body);
   });
 
-  it('debe devolver un proyecto existente', async () => {
+  it('returns an existing project', async () => {
     const project = { id: 'project-1', name: 'Shipyard' };
     mocks.findOne.mockResolvedValue(project);
 
@@ -76,7 +76,7 @@ describe('ProjectsController', () => {
     expect(mocks.findOne).toHaveBeenCalledWith('project-1', 'user-1');
   });
 
-  it('debe lanzar NotFoundException si el proyecto no existe', async () => {
+  it('throws NotFoundException if the project does not exist', async () => {
     mocks.findOne.mockResolvedValue(null);
 
     await expect(
@@ -84,7 +84,7 @@ describe('ProjectsController', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('debe actualizar un proyecto existente', async () => {
+  it('updates an existing project', async () => {
     const body = { name: 'Shipyard v2' };
     const project = { id: 'project-1', name: 'Shipyard v2' };
     mocks.update.mockResolvedValue(project);
@@ -100,15 +100,15 @@ describe('ProjectsController', () => {
     );
   });
 
-  it('debe lanzar NotFoundException si no puede actualizar el proyecto', async () => {
+  it('throws NotFoundException if the project cannot be updated', async () => {
     mocks.update.mockResolvedValue(null);
 
     await expect(
-      controller.update(user, 'missing-project', { name: 'Otro' } as any),
+      controller.update(user, 'missing-project', { name: 'Other' } as any),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('debe eliminar un proyecto existente', async () => {
+  it('deletes an existing project', async () => {
     mocks.remove.mockResolvedValue({ deleted: true });
 
     await expect(
@@ -118,7 +118,7 @@ describe('ProjectsController', () => {
     expect(mocks.remove).toHaveBeenCalledWith('project-1', 'user-1');
   });
 
-  it('debe lanzar NotFoundException si no puede eliminar el proyecto', async () => {
+  it('throws NotFoundException if the project cannot be deleted', async () => {
     mocks.remove.mockResolvedValue(null);
 
     await expect(

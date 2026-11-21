@@ -31,7 +31,7 @@ describe('HealthController', () => {
     );
   });
 
-  it('responde ok cuando PostgreSQL y Redis están disponibles', async () => {
+  it('returns ok when PostgreSQL and Redis are available', async () => {
     await expect(controller.check()).resolves.toEqual({
       status: 'ok',
       database: 'up',
@@ -39,7 +39,7 @@ describe('HealthController', () => {
     });
   });
 
-  it('responde 503 cuando PostgreSQL no está disponible', async () => {
+  it('returns 503 when PostgreSQL is unavailable', async () => {
     prismaMock.$queryRaw.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
     const error = await controller.check().catch((caught) => caught);
@@ -52,7 +52,7 @@ describe('HealthController', () => {
     });
   });
 
-  it('responde 503 cuando Redis no está disponible', async () => {
+  it('returns 503 when Redis is unavailable', async () => {
     redisClientMock.get.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
     const error = await controller.check().catch((caught) => caught);
@@ -65,7 +65,7 @@ describe('HealthController', () => {
     });
   });
 
-  it('responde 503 sin consultar Redis si la conexión no está lista', async () => {
+  it('returns 503 without querying Redis if the connection is not ready', async () => {
     redisClientMock.status = 'reconnecting';
 
     const error = await controller.check().catch((caught) => caught);
@@ -75,7 +75,7 @@ describe('HealthController', () => {
     expect(redisClientMock.get).not.toHaveBeenCalled();
   });
 
-  it('responde 503 si Redis no contesta a tiempo', async () => {
+  it('returns 503 if Redis does not answer in time', async () => {
     vi.useFakeTimers();
     redisClientMock.get.mockReturnValueOnce(new Promise(() => {}));
 

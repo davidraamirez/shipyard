@@ -18,7 +18,7 @@ function createClient(...responses: Response[]) {
 }
 
 describe('DockerClient', () => {
-  it('crea un contenedor con nombre y devuelve su id', async () => {
+  it('creates a named container and returns its id', async () => {
     const { client, fetchMock } = createClient(jsonResponse(201, { Id: 'abc' }));
 
     await expect(client.createContainer('build-1', { Image: 'x' })).resolves.toBe('abc');
@@ -29,7 +29,7 @@ describe('DockerClient', () => {
     expect(JSON.parse(init.body)).toEqual({ Image: 'x' });
   });
 
-  it('convierte los errores de Docker en DockerApiError con su mensaje', async () => {
+  it('turns Docker errors into DockerApiError with their message', async () => {
     const { client } = createClient(jsonResponse(404, { message: 'No such image: x' }));
 
     const error = await client.createContainer('b', {}).catch((caught) => caught);
@@ -39,7 +39,7 @@ describe('DockerClient', () => {
     expect(error.message).toBe('No such image: x');
   });
 
-  it('trata la falta de conexión como 503', async () => {
+  it('treats a connection failure as 503', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
     const client = new DockerClient('http://docker-proxy:2375', fetchMock as typeof fetch);
 
@@ -49,7 +49,7 @@ describe('DockerClient', () => {
     expect(error.status).toBe(503);
   });
 
-  it('imageExists devuelve false con 404 y propaga otros errores', async () => {
+  it('imageExists returns false on 404 and propagates other errors', async () => {
     const { client } = createClient(
       jsonResponse(404, { message: 'no such image' }),
       jsonResponse(500, { message: 'boom' }),
@@ -59,7 +59,7 @@ describe('DockerClient', () => {
     await expect(client.imageExists('x')).rejects.toThrow('boom');
   });
 
-  it('ensureNetwork no crea la red si ya existe', async () => {
+  it('ensureNetwork does not create an existing network', async () => {
     const { client, fetchMock } = createClient(jsonResponse(200, { Name: 'net' }));
 
     await client.ensureNetwork('net');
@@ -67,7 +67,7 @@ describe('DockerClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('ensureNetwork crea una red bridge con salida si no existe', async () => {
+  it('ensureNetwork creates a bridge network with egress if missing', async () => {
     const { client, fetchMock } = createClient(
       jsonResponse(404, { message: 'network not found' }),
       jsonResponse(201, { Id: 'n1' }),
@@ -84,7 +84,7 @@ describe('DockerClient', () => {
     });
   });
 
-  it('ignora 404 al eliminar y 409 al matar contenedores ya terminados', async () => {
+  it('ignores 404 on remove and 409 on kill for finished containers', async () => {
     const { client } = createClient(
       jsonResponse(404, { message: 'no such container' }),
       jsonResponse(409, { message: 'is not running' }),
@@ -94,7 +94,7 @@ describe('DockerClient', () => {
     await expect(client.killContainer('abc')).resolves.toBeUndefined();
   });
 
-  it('lee el estado del contenedor', async () => {
+  it('reads the container state', async () => {
     const { client } = createClient(
       jsonResponse(200, { State: { Running: false, ExitCode: 3 } }),
     );

@@ -48,11 +48,11 @@ describe('Auth HTTP validation (e2e)', () => {
     await app.close();
   });
 
-  it('rechaza un registro con email inválido', async () => {
+  it('rejects a registration with an invalid email', async () => {
     await request(app.getHttpServer())
       .post('/auth/register')
       .send({
-        email: 'no-es-un-email',
+        email: 'not-an-email',
         password: 'password123',
       })
       .expect(400);
@@ -60,7 +60,7 @@ describe('Auth HTTP validation (e2e)', () => {
     expect(authServiceMock.register).not.toHaveBeenCalled();
   });
 
-  it('rechaza propiedades no declaradas en el DTO', async () => {
+  it('rejects properties not declared in the DTO', async () => {
     await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -73,7 +73,7 @@ describe('Auth HTTP validation (e2e)', () => {
     expect(authServiceMock.register).not.toHaveBeenCalled();
   });
 
-  it('acepta un registro válido y delega en AuthService', async () => {
+  it('accepts a valid registration and delegates to AuthService', async () => {
     authServiceMock.register.mockResolvedValueOnce({
       id: 'user-1',
       email: 'test@example.com',

@@ -11,7 +11,7 @@ function readPositiveInteger(name: string, fallback: number): number {
   const value = Number(raw);
 
   if (!Number.isInteger(value) || value < 1) {
-    throw new Error(`${name} debe ser un entero positivo`);
+    throw new Error(`${name} must be a positive integer`);
   }
 
   return value;

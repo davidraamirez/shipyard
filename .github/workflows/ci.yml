@@ -17,13 +17,13 @@ jobs:
     name: Typecheck, lint and tests
     runs-on: ubuntu-latest
     env:
-      # prisma generate no se conecta a la base de datos, pero prisma.config.ts
-      # exige que la variable exista.
+      # prisma generate doesn't connect to the database, but prisma.config.ts
+      # requires the variable to exist.
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
     steps:
       - uses: actions/checkout@v4
 
-      # Usa la versión de "packageManager" del package.json raíz.
+      # Uses the "packageManager" version from the root package.json.
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4

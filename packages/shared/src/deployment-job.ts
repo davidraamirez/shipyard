@@ -1,4 +1,4 @@
-// Contrato de la cola entre la API (productor) y el worker (consumidor).
+// Queue contract between the API (producer) and the worker (consumer).
 export const DEPLOYMENTS_QUEUE = 'deployments';
 export const DEPLOY_PROJECT_JOB = 'deploy-project';
 

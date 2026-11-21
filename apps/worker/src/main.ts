@@ -21,19 +21,19 @@ const worker = new Worker<DeploymentJob>(
 );
 
 worker.on('completed', (job) => {
-  console.log(`Trabajo ${job.id} completado`);
+  console.log(`Job ${job.id} completed`);
 });
 
 worker.on('failed', (job, error) => {
-  console.error(`Trabajo ${job?.id} fallido:`, error.message);
+  console.error(`Job ${job?.id} failed:`, error.message);
 });
 
 worker.on('error', (error) => {
-  console.error('Error del Worker:', error);
+  console.error('Worker error:', error);
 });
 
 console.log(
-  `Shipyard worker conectado a la cola ${DEPLOYMENTS_QUEUE} (concurrencia ${WORKER_CONCURRENCY})`,
+  `Shipyard worker connected to queue ${DEPLOYMENTS_QUEUE} (concurrency ${WORKER_CONCURRENCY})`,
 );
 
 async function shutdown() {

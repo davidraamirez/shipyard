@@ -42,7 +42,7 @@ describe('getBuildCommands', () => {
     ]);
   });
 
-  it('no añade el build si no hay script build', () => {
+  it('does not add the build step without a build script', () => {
     const projectInfo: ProjectInfo = {
       type: 'NODE',
       packageManager: 'pnpm',
@@ -57,7 +57,7 @@ describe('getBuildCommands', () => {
     ]);
   });
 
-  it('rechaza proyectos desconocidos', () => {
+  it('rejects unknown projects', () => {
     const projectInfo: ProjectInfo = {
       type: 'UNKNOWN',
       packageManager: null,
@@ -65,11 +65,11 @@ describe('getBuildCommands', () => {
     };
 
     expect(() => getBuildCommands(projectInfo)).toThrow(
-      'No existe una estrategia de build para UNKNOWN',
+      'No build strategy for UNKNOWN',
     );
   });
 
-  it('rechaza Node sin gestor de paquetes', () => {
+  it('rejects Node without a package manager', () => {
     const projectInfo: ProjectInfo = {
       type: 'NODE',
       packageManager: null,
@@ -77,7 +77,7 @@ describe('getBuildCommands', () => {
     };
 
     expect(() => getBuildCommands(projectInfo)).toThrow(
-      'No se ha detectado un gestor de paquetes compatible',
+      'No supported package manager detected',
     );
   });
 });

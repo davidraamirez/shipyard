@@ -15,7 +15,7 @@ COPY apps/build-runner/tsconfig.json ./apps/build-runner/tsconfig.json
 COPY apps/build-runner/src ./apps/build-runner/src
 
 RUN pnpm --filter @shipyard/build-runner... build
-# Solo dependencias de producción (@shipyard/shared, sin dependencias externas)
+# Production dependencies only (@shipyard/shared, no external dependencies)
 RUN pnpm --filter @shipyard/build-runner deploy --prod --legacy /prod/build-runner
 
 FROM node:22-alpine AS runner

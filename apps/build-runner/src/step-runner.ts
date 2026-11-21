@@ -24,8 +24,8 @@ export type StepRunner = {
 const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-// Ejecuta un comando en un contenedor efímero y devuelve su código de salida.
-// No usa /containers/{id}/wait: el proxy corta las peticiones a los 10 min.
+// Runs a command in an ephemeral container and returns its exit code.
+// It does not use /containers/{id}/wait: the proxy cuts requests at 10 min.
 export class DockerStepRunner implements StepRunner {
   constructor(
     private readonly docker: DockerClient,
@@ -45,7 +45,7 @@ export class DockerStepRunner implements StepRunner {
     });
     const name = getContainerName(deploymentId, getBuildStep(command));
 
-    // Restos de un intento anterior interrumpido (reinicio del build-runner).
+    // Leftovers from an interrupted previous attempt (build-runner restart).
     await this.docker.removeContainer(name);
 
     const id = await this.docker.createContainer(name, spec);
@@ -67,7 +67,7 @@ export class DockerStepRunner implements StepRunner {
       for (;;) {
         await sleep(this.pollIntervalMs);
 
-        // Primero el estado: si ya ha terminado, los logs están completos.
+        // State first: if it has finished, the logs are complete.
         const state = await this.docker.inspectContainer(id);
         await emitNewOutput();
 
@@ -78,13 +78,13 @@ export class DockerStepRunner implements StepRunner {
         if (Date.now() > deadline) {
           await this.docker.killContainer(id);
           throw new StepTimeoutError(
-            `"${command.command} ${command.args[0]}" superó el tiempo límite de ${Math.round(this.config.stepTimeoutMs / 1000)} s`,
+            `"${command.command} ${command.args[0]}" exceeded the time limit of ${Math.round(this.config.stepTimeoutMs / 1000)} s`,
           );
         }
       }
     } finally {
       await this.docker.removeContainer(id).catch((error: unknown) => {
-        console.error(`No se pudo eliminar el contenedor ${id}:`, error);
+        console.error(`Could not remove container ${id}:`, error);
       });
     }
   }

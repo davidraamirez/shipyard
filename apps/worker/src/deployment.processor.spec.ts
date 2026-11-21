@@ -64,11 +64,11 @@ describe('processDeployment', () => {
       buildScript: 'build',
     });
 
-    // Simula el build-runner: emite salida y termina bien.
+    // Simulates the build-runner: emits output and succeeds.
     buildMock.buildProject.mockImplementation(
       async (_id: string, _workspace: string, _info: unknown, onOutput: (text: string) => Promise<void>) => {
-        await onOutput('\n> tsc\nBuild completado\n');
-        // Un trozo vacío no genera log.
+        await onOutput('\n> tsc\nBuild done\n');
+        // An empty chunk creates no log.
         await onOutput('\n\n');
       },
     );
@@ -81,7 +81,7 @@ describe('processDeployment', () => {
     requestedAt: new Date().toISOString(),
   };
 
-  it('marca el deployment como BUILDING y después RUNNING', async () => {
+  it('marks the deployment BUILDING and then RUNNING', async () => {
     prismaMock.deployment.update
       .mockResolvedValueOnce({ id: 'deployment-1', status: 'BUILDING' })
       .mockResolvedValueOnce({ id: 'deployment-1', status: 'RUNNING' });
@@ -110,15 +110,15 @@ describe('processDeployment', () => {
     });
   });
 
-  it('marca el deployment como FAILED si falla el procesamiento', async () => {
-    const processingError = new Error('Error al actualizar el deployment');
+  it('marks the deployment FAILED if processing fails', async () => {
+    const processingError = new Error('Error updating the deployment');
 
     prismaMock.deployment.update
       .mockRejectedValueOnce(processingError)
       .mockResolvedValueOnce({ id: 'deployment-1', status: 'FAILED' });
 
     await expect(processDeployment(deploymentJob)).rejects.toThrow(
-      'Error al actualizar el deployment',
+      'Error updating the deployment',
     );
 
     expect(prismaMock.deployment.update).toHaveBeenNthCalledWith(2, {
@@ -127,30 +127,30 @@ describe('processDeployment', () => {
     });
   });
 
-  it('propaga el error original aunque también falle la actualización a FAILED', async () => {
-    const processingError = new Error('Error de procesamiento');
-    const databaseError = new Error('Error de PostgreSQL');
+  it('propagates the original error even if the FAILED update also fails', async () => {
+    const processingError = new Error('Processing error');
+    const databaseError = new Error('PostgreSQL error');
 
     prismaMock.deployment.update
       .mockRejectedValueOnce(processingError)
       .mockRejectedValueOnce(databaseError);
 
     await expect(processDeployment(deploymentJob)).rejects.toThrow(
-      'Error de procesamiento',
+      'Processing error',
     );
 
     expect(prismaMock.deployment.update).toHaveBeenCalledTimes(2);
   });
 
-  it('no marca el deployment como RUNNING si falla al establecer BUILDING', async () => {
-    const processingError = new Error('No se pudo establecer BUILDING');
+  it('does not mark RUNNING if setting BUILDING fails', async () => {
+    const processingError = new Error('Could not set BUILDING');
 
     prismaMock.deployment.update
       .mockRejectedValueOnce(processingError)
       .mockResolvedValueOnce({ id: 'deployment-1', status: 'FAILED' });
 
     await expect(processDeployment(deploymentJob)).rejects.toThrow(
-      'No se pudo establecer BUILDING',
+      'Could not set BUILDING',
     );
 
     expect(prismaMock.deployment.update).toHaveBeenCalledTimes(2);
@@ -166,8 +166,8 @@ describe('processDeployment', () => {
     });
   });
 
-  it('no marca como FAILED si todavía quedan reintentos', async () => {
-    const processingError = new Error('Fallo temporal');
+  it('does not mark FAILED while retries remain', async () => {
+    const processingError = new Error('Temporary failure');
 
     prismaMock.deployment.update.mockRejectedValueOnce(processingError);
 
@@ -176,7 +176,7 @@ describe('processDeployment', () => {
         attemptsMade: 0,
         maxAttempts: 3,
       }),
-    ).rejects.toThrow('Fallo temporal');
+    ).rejects.toThrow('Temporary failure');
 
     expect(prismaMock.deployment.update).toHaveBeenCalledTimes(1);
 
@@ -186,8 +186,8 @@ describe('processDeployment', () => {
     });
   });
 
-  it('marca como FAILED cuando falla el último intento', async () => {
-    const processingError = new Error('Fallo definitivo');
+  it('marks FAILED when the last attempt fails', async () => {
+    const processingError = new Error('Final failure');
 
     prismaMock.deployment.update
       .mockRejectedValueOnce(processingError)
@@ -201,7 +201,7 @@ describe('processDeployment', () => {
         attemptsMade: 2,
         maxAttempts: 3,
       }),
-    ).rejects.toThrow('Fallo definitivo');
+    ).rejects.toThrow('Final failure');
 
     expect(prismaMock.deployment.update).toHaveBeenNthCalledWith(2, {
       where: { id: 'deployment-1' },
@@ -210,7 +210,7 @@ describe('processDeployment', () => {
   });
 
   
-  it('vuelve a establecer BUILDING cuando un deployment se procesa de nuevo', async () => {
+  it('sets BUILDING again when a deployment is reprocessed', async () => {
     prismaMock.deployment.update
       .mockResolvedValueOnce({
         id: 'deployment-1',
@@ -245,7 +245,7 @@ describe('processDeployment', () => {
   });
 
   
-  it('guarda logs al iniciar y completar un deployment', async () => {
+  it('stores logs when starting and completing a deployment', async () => {
     prismaMock.deployment.update
       .mockResolvedValueOnce({ id: 'deployment-1', status: 'BUILDING' })
       .mockResolvedValueOnce({ id: 'deployment-1', status: 'RUNNING' });
@@ -257,17 +257,17 @@ describe('processDeployment', () => {
     );
 
     expect(messages).toEqual([
-      'Inicio del intento 1/1',
-      'Estado actualizado a BUILDING',
-      'Repositorio clonado correctamente',
+      'Starting attempt 1/1',
+      'Status set to BUILDING',
+      'Repository cloned',
       'Commit: aaaaaaa',
-      'Tipo de proyecto detectado: NODE',
-      'Gestor de paquetes: pnpm',
-      'Script build: build',
-      'Iniciando build del proyecto',
-      '> tsc\nBuild completado',
-      'Build completado correctamente',
-      'Estado actualizado a RUNNING',
+      'Detected project type: NODE',
+      'Package manager: pnpm',
+      'Build script: build',
+      'Starting project build',
+      '> tsc\nBuild done',
+      'Build completed',
+      'Status set to RUNNING',
     ]);
 
     expect(gitMock.cloneRepository).toHaveBeenCalledWith(
@@ -276,7 +276,7 @@ describe('processDeployment', () => {
     );
   });
 
-  it('falla sin ejecutar el build si el tipo de proyecto no es compatible', async () => {
+  it('fails without building if the project type is unsupported', async () => {
     detectorMock.detectProject.mockResolvedValueOnce({
       type: 'UNKNOWN',
       packageManager: null,
@@ -288,10 +288,10 @@ describe('processDeployment', () => {
       maxAttempts: 3,
     }).catch((caught) => caught);
 
-    // No se reintenta aunque queden intentos: BullMQ recibe un UnrecoverableError.
+    // Not retried even with attempts left: BullMQ gets an UnrecoverableError.
     expect(error).toBeInstanceOf(UnrecoverableError);
     expect(error.message).toBe(
-      'Tipo de proyecto no compatible para build: UNKNOWN',
+      'Unsupported project type for build: UNKNOWN',
     );
     expect(buildMock.buildProject).not.toHaveBeenCalled();
     expect(gitMock.removeWorkspace).toHaveBeenCalledWith(
@@ -303,9 +303,9 @@ describe('processDeployment', () => {
     });
   });
 
-  it('registra un WARN cuando un intento falla y quedan reintentos', async () => {
+  it('logs a WARN when an attempt fails and retries remain', async () => {
     prismaMock.deployment.update.mockRejectedValueOnce(
-      new Error('Fallo temporal'),
+      new Error('Temporary failure'),
     );
 
     await expect(
@@ -313,21 +313,21 @@ describe('processDeployment', () => {
         attemptsMade: 0,
         maxAttempts: 3,
       }),
-    ).rejects.toThrow('Fallo temporal');
+    ).rejects.toThrow('Temporary failure');
 
     expect(prismaMock.deploymentLog.create).toHaveBeenCalledWith({
       data: {
         deploymentId: 'deployment-1',
         level: 'WARN',
         message:
-          'Falló el intento 1/3: Fallo temporal. BullMQ podrá reintentarlo.',
+          'Attempt 1/3 failed: Temporary failure. BullMQ will retry it.',
       },
     });
   });
 
-  it('no interrumpe el deployment si falla el guardado de un log', async () => {
+  it('does not interrupt the deployment if saving a log fails', async () => {
     prismaMock.deploymentLog.create.mockRejectedValue(
-      new Error('No se pudo guardar el log'),
+      new Error('Could not save the log'),
     );
 
     prismaMock.deployment.update
@@ -339,8 +339,8 @@ describe('processDeployment', () => {
     expect(result.status).toBe('RUNNING');
   });
 
-  it('no marca como RUNNING si falla el build', async () => {
-    const buildError = new Error('Falló la compilación');
+  it('does not mark RUNNING if the build fails', async () => {
+    const buildError = new Error('Compilation failed');
 
     prismaMock.deployment.update.mockResolvedValueOnce({
       id: 'deployment-1',
@@ -354,7 +354,7 @@ describe('processDeployment', () => {
         attemptsMade: 0,
         maxAttempts: 3,
       }),
-    ).rejects.toThrow('Falló la compilación');
+    ).rejects.toThrow('Compilation failed');
 
     expect(buildMock.buildProject).toHaveBeenCalledWith(
       'deployment-1',
@@ -379,13 +379,13 @@ describe('processDeployment', () => {
         deploymentId: 'deployment-1',
         level: 'WARN',
         message:
-          'Falló el intento 1/3: Falló la compilación. BullMQ podrá reintentarlo.',
+          'Attempt 1/3 failed: Compilation failed. BullMQ will retry it.',
       },
     });
   });
 
 
-  it('elimina el workspace al terminar correctamente', async () => {
+  it('removes the workspace after succeeding', async () => {
     await processDeployment(deploymentJob);
 
     expect(gitMock.removeWorkspace).toHaveBeenCalledWith(
@@ -393,25 +393,25 @@ describe('processDeployment', () => {
     );
   });
 
-  it('elimina el workspace aunque falle el build', async () => {
-    buildMock.buildProject.mockRejectedValueOnce(new Error('Falló'));
+  it('removes the workspace even if the build fails', async () => {
+    buildMock.buildProject.mockRejectedValueOnce(new Error('Failed'));
 
-    await expect(processDeployment(deploymentJob)).rejects.toThrow('Falló');
+    await expect(processDeployment(deploymentJob)).rejects.toThrow('Failed');
 
     expect(gitMock.removeWorkspace).toHaveBeenCalledWith(
       '/app/workspaces/deployment-1',
     );
   });
 
-  it('no intenta limpiar si el clonado falla', async () => {
-    gitMock.cloneRepository.mockRejectedValueOnce(new Error('Sin red'));
+  it('does not clean up if cloning fails', async () => {
+    gitMock.cloneRepository.mockRejectedValueOnce(new Error('No network'));
 
-    await expect(processDeployment(deploymentJob)).rejects.toThrow('Sin red');
+    await expect(processDeployment(deploymentJob)).rejects.toThrow('No network');
 
     expect(gitMock.removeWorkspace).not.toHaveBeenCalled();
   });
 
-  it('no falla el job si no se puede eliminar el workspace', async () => {
+  it('does not fail the job if the workspace cannot be removed', async () => {
     gitMock.removeWorkspace.mockRejectedValueOnce(new Error('EBUSY'));
     const consoleError = vi
       .spyOn(console, 'error')
@@ -426,7 +426,7 @@ describe('processDeployment', () => {
     }
   });
 
-  it('reintenta los errores transitorios mientras queden intentos', async () => {
+  it('retries transient errors while attempts remain', async () => {
     buildMock.buildProject.mockRejectedValueOnce(new Error('Timeout'));
 
     const error = await processDeployment(deploymentJob, {
@@ -438,9 +438,9 @@ describe('processDeployment', () => {
     expect(error.message).toBe('Timeout');
   });
 
-  it('marca FAILED a la primera si el error es permanente', async () => {
+  it('marks FAILED right away on a permanent error', async () => {
     buildMock.buildProject.mockRejectedValueOnce(
-      new PermanentDeploymentError('No se encuentra pnpm-lock.yaml'),
+      new PermanentDeploymentError('pnpm-lock.yaml not found'),
     );
 
     const error = await processDeployment(deploymentJob, {
@@ -457,12 +457,12 @@ describe('processDeployment', () => {
       data: {
         deploymentId: 'deployment-1',
         level: 'ERROR',
-        message: 'Error no recuperable: No se encuentra pnpm-lock.yaml',
+        message: 'Unrecoverable error: pnpm-lock.yaml not found',
       },
     });
   });
 
-  it('descarta el job sin reintentar si el deployment ya no existe', async () => {
+  it('drops the job without retrying if the deployment no longer exists', async () => {
     prismaMock.deployment.update.mockRejectedValueOnce(
       Object.assign(new Error('Record not found'), { code: 'P2025' }),
     );
@@ -477,7 +477,7 @@ describe('processDeployment', () => {
       }).catch((caught) => caught);
 
       expect(error).toBeInstanceOf(UnrecoverableError);
-      expect(error.message).toBe('El deployment ya no existe');
+      expect(error.message).toBe('The deployment no longer exists');
       expect(prismaMock.deployment.update).toHaveBeenCalledTimes(1);
       expect(gitMock.cloneRepository).not.toHaveBeenCalled();
     } finally {

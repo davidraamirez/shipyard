@@ -28,7 +28,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('debe registrar un usuario sin devolver su contraseña', async () => {
+    it('registers a user without returning the password', async () => {
       const user = {
         id: 'user-1',
         email: 'bob@example.com',
@@ -62,7 +62,7 @@ describe('AuthService', () => {
       });
     });
 
-    it('debe convertir un email duplicado en ConflictException', async () => {
+    it('turns a duplicate email into ConflictException', async () => {
       mocks.user.create.mockRejectedValue({
         code: 'P2002',
       });
@@ -76,7 +76,7 @@ describe('AuthService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('debe propagar errores inesperados de Prisma', async () => {
+    it('propagates unexpected Prisma errors', async () => {
       const error = new Error('Database unavailable');
       mocks.user.create.mockRejectedValue(error);
 
@@ -91,7 +91,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('debe devolver un JWT con credenciales correctas', async () => {
+    it('returns a JWT for valid credentials', async () => {
       const passwordHash = await hash('Password123!', 4);
 
       mocks.user.findUnique.mockResolvedValue({
@@ -118,7 +118,7 @@ describe('AuthService', () => {
       });
     });
 
-    it('debe rechazar un email que no existe', async () => {
+    it('rejects an unknown email', async () => {
       mocks.user.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -131,7 +131,7 @@ describe('AuthService', () => {
       expect(mocks.signAsync).not.toHaveBeenCalled();
     });
 
-    it('debe rechazar una contraseña incorrecta', async () => {
+    it('rejects a wrong password', async () => {
       const passwordHash = await hash('CorrectPassword123!', 4);
 
       mocks.user.findUnique.mockResolvedValue({

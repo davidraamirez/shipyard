@@ -24,7 +24,7 @@ describe('ProjectsService', () => {
     service = new ProjectsService(prismaMock as any);
   });
 
-  it('debe listar solo los proyectos del usuario', async () => {
+  it('lists only the projects of the user', async () => {
     const projects = [{ id: 'project-1', name: 'Shipyard' }];
     prismaMock.project.findMany.mockResolvedValue(projects);
 
@@ -36,7 +36,7 @@ describe('ProjectsService', () => {
     });
   });
 
-  it('debe crear un proyecto asociado al usuario', async () => {
+  it('creates a project owned by the user', async () => {
     const project = { id: 'project-1', name: 'Shipyard', userId: 'user-1' };
     prismaMock.project.create.mockResolvedValue(project);
 
@@ -56,7 +56,7 @@ describe('ProjectsService', () => {
     });
   });
 
-  it('debe devolver null si el proyecto no pertenece al usuario', async () => {
+  it('returns null if the project does not belong to the user', async () => {
     prismaMock.project.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -70,17 +70,17 @@ describe('ProjectsService', () => {
     );
   });
 
-  it('debe devolver null si no se puede actualizar el proyecto', async () => {
+  it('returns null if the project cannot be updated', async () => {
     prismaMock.project.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
-      service.update('project-1', 'user-2', { name: 'Otro nombre' }),
+      service.update('project-1', 'user-2', { name: 'Other name' }),
     ).resolves.toBeNull();
 
     expect(prismaMock.project.findFirst).not.toHaveBeenCalled();
   });
 
-  it('debe actualizar un proyecto del usuario', async () => {
+  it('updates a project of the user', async () => {
     const project = { id: 'project-1', name: 'Shipyard v2' };
     prismaMock.project.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.project.findFirst.mockResolvedValue(project);
@@ -95,7 +95,7 @@ describe('ProjectsService', () => {
     });
   });
 
-  it('debe eliminar un proyecto del usuario', async () => {
+  it('deletes a project of the user', async () => {
     prismaMock.project.deleteMany.mockResolvedValue({ count: 1 });
 
     await expect(
@@ -107,7 +107,7 @@ describe('ProjectsService', () => {
     });
   });
 
-  it('debe devolver null si no se puede eliminar el proyecto', async () => {
+  it('returns null if the project cannot be deleted', async () => {
     prismaMock.project.deleteMany.mockResolvedValue({ count: 0 });
 
     await expect(

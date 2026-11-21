@@ -9,14 +9,14 @@ export function isDeploymentId(value: unknown): value is string {
   return typeof value === 'string' && DEPLOYMENT_ID_PATTERN.test(value);
 }
 
-// Construye la ruta del workspace de un deployment. Solo acepta UUIDs, así
-// que el identificador no puede contener separadores ni "..".
+// Builds the workspace path of a deployment. It only accepts UUIDs, so
+// the id cannot contain separators or "..".
 export function getWorkspacePath(
   deploymentId: string,
   workspacesDir = DEFAULT_WORKSPACES_DIR,
 ): string {
   if (!isDeploymentId(deploymentId)) {
-    throw new Error('deploymentId no válido');
+    throw new Error('Invalid deploymentId');
   }
 
   const workspace = path.resolve(workspacesDir, deploymentId);
@@ -28,20 +28,20 @@ export function getWorkspacePath(
     relativePath.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relativePath)
   ) {
-    throw new Error('La ruta del workspace no está permitida');
+    throw new Error('Workspace path not allowed');
   }
 
   return workspace;
 }
 
-// Valida una ruta ya construida (POSIX, tal como se ve dentro del contenedor)
-// antes de montarla en un contenedor de build.
+// Validates an already built path (POSIX, as seen inside the container)
+// before mounting it into a build container.
 export function validateWorkspacePath(
   workspace: string,
   workspacesDir = DEFAULT_WORKSPACES_DIR,
 ): string {
   if (!path.posix.isAbsolute(workspace)) {
-    throw new Error('La ruta del workspace debe ser absoluta');
+    throw new Error('Workspace path must be absolute');
   }
 
   const resolvedWorkspace = path.posix.resolve(workspace);
@@ -53,7 +53,7 @@ export function validateWorkspacePath(
     relativePath.startsWith('../') ||
     path.posix.isAbsolute(relativePath)
   ) {
-    throw new Error('La ruta del workspace no está permitida');
+    throw new Error('Workspace path not allowed');
   }
 
   return resolvedWorkspace;

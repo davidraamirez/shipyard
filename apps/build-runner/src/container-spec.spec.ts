@@ -27,7 +27,7 @@ const install = { command: 'pnpm' as const, args: [...INSTALL_ARGS.pnpm] };
 const build = { command: 'pnpm' as const, args: [...BUILD_ARGS.pnpm] };
 
 describe('createContainerSpec', () => {
-  it('ejecuta exactamente el comando permitido como usuario sin privilegios', () => {
+  it('runs exactly the allowed command as an unprivileged user', () => {
     const spec = createContainerSpec({ deploymentId, command: install, config });
 
     expect(spec.Image).toBe('shipyard-build-node:22');
@@ -36,7 +36,7 @@ describe('createContainerSpec', () => {
     expect(spec.WorkingDir).toBe('/workspace');
   });
 
-  it('aplica todas las restricciones de seguridad', () => {
+  it('applies every security restriction', () => {
     const { HostConfig } = createContainerSpec({ deploymentId, command: build, config });
 
     expect(HostConfig.Privileged).toBe(false);
@@ -49,7 +49,7 @@ describe('createContainerSpec', () => {
     expect(HostConfig.PidsLimit).toBe(config.pidsLimit);
   });
 
-  it('no monta nada más que la carpeta del deployment', () => {
+  it('mounts nothing but the deployment folder', () => {
     const { HostConfig } = createContainerSpec({ deploymentId, command: build, config });
 
     expect(HostConfig.Mounts).toEqual([
@@ -64,7 +64,7 @@ describe('createContainerSpec', () => {
     expect(HostConfig).not.toHaveProperty('Binds');
   });
 
-  it('da red solo a la instalación de dependencias', () => {
+  it('gives network access only to dependency installation', () => {
     const installSpec = createContainerSpec({ deploymentId, command: install, config });
     const buildSpec = createContainerSpec({ deploymentId, command: build, config });
 
@@ -74,7 +74,7 @@ describe('createContainerSpec', () => {
     expect(buildSpec.NetworkDisabled).toBe(true);
   });
 
-  it('etiqueta el contenedor para poder limpiar huérfanos', () => {
+  it('labels the container so orphans can be cleaned up', () => {
     const spec = createContainerSpec({ deploymentId, command: install, config });
 
     expect(spec.Labels).toEqual({
@@ -83,25 +83,25 @@ describe('createContainerSpec', () => {
     });
   });
 
-  it('rechaza un deploymentId que no es UUID', () => {
+  it('rejects a non-UUID deploymentId', () => {
     expect(() =>
       createContainerSpec({ deploymentId: '../../etc', command: install, config }),
-    ).toThrow('deploymentId no válido');
+    ).toThrow('Invalid deploymentId');
   });
 
-  it('rechaza comandos fuera de la lista blanca', () => {
+  it('rejects commands outside the allowlist', () => {
     expect(() =>
       createContainerSpec({
         deploymentId,
         command: { command: 'pnpm', args: ['exec', 'sh'] },
         config,
       }),
-    ).toThrow('Combinación de comando y argumentos no permitida');
+    ).toThrow('Command and arguments combination not allowed');
   });
 });
 
 describe('getBuildStep', () => {
-  it('distingue instalación y build para cada gestor', () => {
+  it('tells install and build apart for every package manager', () => {
     for (const manager of ['pnpm', 'npm', 'yarn'] as const) {
       expect(getBuildStep({ command: manager, args: [...INSTALL_ARGS[manager]] })).toBe('install');
       expect(getBuildStep({ command: manager, args: [...BUILD_ARGS[manager]] })).toBe('build');
@@ -110,7 +110,7 @@ describe('getBuildStep', () => {
 });
 
 describe('getContainerName', () => {
-  it('incluye el deployment y el paso', () => {
+  it('includes the deployment and the step', () => {
     expect(getContainerName(deploymentId, 'build')).toBe(
       `shipyard-build-${deploymentId}-build`,
     );

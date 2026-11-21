@@ -10,6 +10,6 @@ allowBuilds:
   sharp: false
   unrs-resolver: false
   workerd: false
-# Una sola versión de los tipos de Node, la del runtime de las imágenes (node:22).
+# A single version of the Node types, matching the image runtime (node:22).
 overrides:
   '@types/node': ^22.0.0

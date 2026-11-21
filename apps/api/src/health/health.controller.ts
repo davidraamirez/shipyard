@@ -50,9 +50,9 @@ export class HealthController {
     }
   }
 
-  // El cliente genérico de BullMQ 6 no expone PING: comprobamos el estado de
-  // la conexión y hacemos una lectura barata con timeout, porque ioredis
-  // encola los comandos mientras reconecta y la petición podría quedarse colgada.
+  // BullMQ 6's generic client has no PING: we check the connection
+  // status and do a cheap read with a timeout, because ioredis
+  // queues commands while reconnecting and the request could hang.
   private async checkRedis(): Promise<DependencyStatus> {
     let timeout: ReturnType<typeof setTimeout> | undefined;
 

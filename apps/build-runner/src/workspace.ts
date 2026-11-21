@@ -12,11 +12,11 @@ export async function requireWorkspace(
   try {
     workspaceStat = await lstat(workspace);
   } catch {
-    throw new Error('No se encuentra el workspace del deployment');
+    throw new Error('Deployment workspace not found');
   }
 
   if (!workspaceStat.isDirectory() || workspaceStat.isSymbolicLink()) {
-    throw new Error('El workspace no es un directorio válido');
+    throw new Error('The workspace is not a valid directory');
   }
 
   return workspace;

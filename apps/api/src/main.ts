@@ -31,7 +31,7 @@ async function bootstrap() {
     }),
   );
 
-  // Cierra Prisma y las conexiones de BullMQ al recibir SIGTERM (docker stop).
+  // Closes Prisma and BullMQ connections on SIGTERM (docker stop).
   app.enableShutdownHooks();
 
   await app.listen(Number(config.get<string>('PORT', '3001')));

@@ -1,5 +1,5 @@
-// Cliente mínimo de la API HTTP de Docker Engine, sin dependencias. Solo
-// implementa lo que necesita el build-runner, a través de docker-socket-proxy.
+// Minimal, dependency-free Docker Engine HTTP API client. It only
+// implements what the build-runner needs, through docker-socket-proxy.
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -45,7 +45,7 @@ export class DockerClient {
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      throw new DockerApiError(`No se pudo conectar con Docker: ${reason}`, 503);
+      throw new DockerApiError(`Could not connect to Docker: ${reason}`, 503);
     }
 
     if (!response.ok) {
@@ -55,7 +55,7 @@ export class DockerClient {
       const message =
         typeof detail?.message === 'string'
           ? detail.message
-          : `Docker respondió con HTTP ${response.status}`;
+          : `Docker responded with HTTP ${response.status}`;
 
       throw new DockerApiError(message, response.status);
     }
@@ -75,8 +75,8 @@ export class DockerClient {
     }
   }
 
-  // Crea la red si no existe. No es "internal" porque la instalación de
-  // dependencias necesita salir al registro de paquetes.
+  // Creates the network if missing. It is not "internal" because dependency
+  // installation needs to reach the package registry.
   async ensureNetwork(name: string): Promise<void> {
     try {
       await this.request('GET', `/networks/${encodeURIComponent(name)}`);
@@ -105,7 +105,7 @@ export class DockerClient {
     const body = (await response.json()) as { Id?: unknown };
 
     if (typeof body.Id !== 'string') {
-      throw new DockerApiError('Docker no devolvió el id del contenedor', 502);
+      throw new DockerApiError('Docker did not return the container id', 502);
     }
 
     return body.Id;
@@ -127,8 +127,8 @@ export class DockerClient {
     };
   }
 
-  // Con Tty activado la salida llega como texto plano (sin la cabecera
-  // multiplexada de 8 bytes) y stdout y stderr vienen ya mezclados.
+  // With Tty enabled the output is plain text (without the 8-byte
+  // multiplexing header) and stdout and stderr are already merged.
   async containerLogs(id: string): Promise<string> {
     const response = await this.request(
       'GET',
@@ -142,7 +142,7 @@ export class DockerClient {
     try {
       await this.request('POST', `/containers/${id}/kill`);
     } catch (error) {
-      // 409: el contenedor ya no está en ejecución.
+      // 409: the container is no longer running.
       if (!(error instanceof DockerApiError && error.status === 409)) {
         throw error;
       }

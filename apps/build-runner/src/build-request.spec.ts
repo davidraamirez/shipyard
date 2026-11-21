@@ -16,20 +16,20 @@ describe('validateBuildRequest', () => {
     ],
   };
 
-  it('acepta una solicitud de build válida', () => {
+  it('accepts a valid build request', () => {
     expect(validateBuildRequest(validRequest)).toEqual(validRequest);
   });
 
-  it('rechaza un deploymentId no válido', () => {
+  it('rejects an invalid deploymentId', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
-        deploymentId: '../otro-directorio',
+        deploymentId: '../other-directory',
       }),
-    ).toThrow('deploymentId no válido');
+    ).toThrow('Invalid deploymentId');
   });
 
-  it('rechaza comandos de shell arbitrarios', () => {
+  it('rejects arbitrary shell commands', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
@@ -40,28 +40,28 @@ describe('validateBuildRequest', () => {
           },
         ],
       }),
-    ).toThrow('Combinación de comando y argumentos no permitida');
+    ).toThrow('Command and arguments combination not allowed');
   });
 
-  it('rechaza gestores de paquetes desconocidos', () => {
+  it('rejects unknown package managers', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
         commands: [{ command: 'bash', args: ['-c', 'whoami'] }],
       }),
-    ).toThrow('Gestor de paquetes no permitido');
+    ).toThrow('Package manager not allowed');
   });
 
-  it('rechaza una lista vacía de comandos', () => {
+  it('rejects an empty command list', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
         commands: [],
       }),
-    ).toThrow('La lista de comandos no es válida');
+    ).toThrow('Invalid command list');
   });
 
-  it('rechaza más de dos comandos', () => {
+  it('rejects more than two commands', () => {
     expect(() =>
       validateBuildRequest({
         ...validRequest,
@@ -70,6 +70,6 @@ describe('validateBuildRequest', () => {
           validRequest.commands[0],
         ],
       }),
-    ).toThrow('La lista de comandos no es válida');
+    ).toThrow('Invalid command list');
   });
 });

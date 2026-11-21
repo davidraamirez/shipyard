@@ -52,7 +52,7 @@ export class ProjectsController {
     );
 
     if (!project) {
-      throw new NotFoundException('Proyecto no encontrado');
+      throw new NotFoundException('Project not found');
     }
 
     return project;
@@ -71,7 +71,7 @@ export class ProjectsController {
     );
 
     if (!project) {
-      throw new NotFoundException('Proyecto no encontrado');
+      throw new NotFoundException('Project not found');
     }
 
     return project;
@@ -89,7 +89,7 @@ export class ProjectsController {
     );
 
     if (!result) {
-      throw new NotFoundException('Proyecto no encontrado');
+      throw new NotFoundException('Project not found');
     }
 
     return result;
