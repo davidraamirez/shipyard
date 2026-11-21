@@ -64,10 +64,14 @@ describe('processDeployment', () => {
       buildScript: 'build',
     });
 
-    buildMock.buildProject.mockResolvedValue({
-      success: true,
-      output: 'Build completado',
-    });
+    // Simula el build-runner: emite salida y termina bien.
+    buildMock.buildProject.mockImplementation(
+      async (_id: string, _workspace: string, _info: unknown, onOutput: (text: string) => Promise<void>) => {
+        await onOutput('\n> tsc\nBuild completado\n');
+        // Un trozo vacío no genera log.
+        await onOutput('\n\n');
+      },
+    );
   });
 
   const deploymentJob = {
@@ -261,8 +265,8 @@ describe('processDeployment', () => {
       'Gestor de paquetes: pnpm',
       'Script build: build',
       'Iniciando build del proyecto',
+      '> tsc\nBuild completado',
       'Build completado correctamente',
-      'Build completado',
       'Estado actualizado a RUNNING',
     ]);
 
@@ -360,6 +364,7 @@ describe('processDeployment', () => {
         packageManager: 'pnpm',
         buildScript: 'build',
       },
+      expect.any(Function),
     );
 
     expect(prismaMock.deployment.update).toHaveBeenCalledTimes(2);

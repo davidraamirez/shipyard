@@ -1,22 +1,16 @@
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { requestBuild } from './build-runner-client.js';
+import { runRemoteBuild } from './build-runner-client.js';
 import type { ProjectInfo } from './project-detector.js';
 import { getBuildCommands } from './build-strategy.js';
 import { PermanentDeploymentError } from './errors.js';
-
-const MAX_OUTPUT_LENGTH = 20_000;
-
-type BuildResult = {
-  success: true;
-  output: string;
-};
 
 export async function buildProject(
   deploymentId: string,
   workspace: string,
   projectInfo: ProjectInfo,
-): Promise<BuildResult> {
+  onOutput: (text: string) => Promise<void> | void = () => {},
+): Promise<void> {
   if (projectInfo.type !== 'NODE') {
     throw new PermanentDeploymentError(
       `No existe una estrategia de build para ${projectInfo.type}`,
@@ -57,13 +51,5 @@ export async function buildProject(
 
   const commands = getBuildCommands(projectInfo);
 
-  const result = await requestBuild({
-    deploymentId,
-    commands,
-  });
-
-  return {
-    success: true,
-    output: result.output.slice(-MAX_OUTPUT_LENGTH),
-  };
+  await runRemoteBuild({ deploymentId, commands }, onOutput);
 }

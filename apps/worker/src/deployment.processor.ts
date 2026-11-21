@@ -124,21 +124,22 @@ export async function processDeployment(
       'Iniciando build del proyecto',
     );
 
-    const buildResult = await buildProject(
-      deploymentId,
-      workspace,
-      projectInfo,
-    );
+    // La salida del build se guarda a medida que llega del build-runner.
+    await buildProject(deploymentId, workspace, projectInfo, async (output) => {
+      // Los trozos llegan cortados por el sondeo y a veces empiezan con un
+      // salto de línea: se quitan los del principio y los del final.
+      const text = output.replace(/^\n+/, '').trimEnd();
+
+      if (text) {
+        await writeDeploymentLog(deploymentId, 'INFO', text);
+      }
+    });
 
     await writeDeploymentLog(
       deploymentId,
       'INFO',
       'Build completado correctamente',
     );
-
-    if (buildResult.output.trim()) {
-      await writeDeploymentLog(deploymentId, 'INFO', buildResult.output);
-    }
 
     await prisma.deployment.update({
       where: { id: deploymentId },
